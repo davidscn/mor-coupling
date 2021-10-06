@@ -16,5 +16,17 @@ pybind11_add_module(dealii_${TARGET} py_${TARGET}.cc ${TARGET}.cc)
 
 DEAL_II_SETUP_TARGET(dealii_${TARGET})
 
-FIND_PACKAGE(precice 2.0 REQUIRED)
+# the environment variable precice_DIR is searched by default
+FIND_PACKAGE(precice 2.0
+        HINTS ${precice_DIR} ${PRECICE_DIR} $ENV{PRECICE_DIR}
+  )
+IF(NOT ${precice_FOUND})
+   MESSAGE(FATAL_ERROR "\n"
+    "*** Could not locate a (sufficiently recent) version of preCICE. ***\n\n"
+    "You may want to either pass a flag -Dprecice_DIR=/path/to/precice to cmake\n"
+    "(where the path points to the installation prefix or the build directory)\n"
+    " or set an environment variable \"precice_DIR\" that contains this path."
+    )
+ENDIF()
+MESSAGE(STATUS "Using the preCICE version found at ${precice_DIR}")
 TARGET_LINK_LIBRARIES(dealii_${TARGET} precice::precice)

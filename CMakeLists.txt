@@ -19,6 +19,12 @@ IF(NOT CMAKE_BUILD_TYPE)
   MESSAGE(STATUS "No build type specified. Building in ${CMAKE_BUILD_TYPE} mode.")
 ENDIF()
 
+# Enable a switchable dimension choice
+IF (NOT DEFINED DIM)
+        SET(DIM 2)
+ENDIF()
+ADD_DEFINITIONS(-DDIM=${DIM})
+
 # Set the include directory and the name of the project
 PROJECT(${TARGET})
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include/dealii-adapter/include)
