@@ -1,24 +1,30 @@
-##
-#  CMake script for the dealii-adapter:
-##
-
 # CMake minimum version
-CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
-# Set pybind version
-SET(PYBIND11_PYTHON_VERSION "3" CACHE STRING "Python version to use for compiling the example library")
-
-ADD_SUBDIRECTORY(pybind11)
 # Set the name of the project and target:
 SET(TARGET "heat_equation")
-SET(_src
-    ${TARGET}.cc
-)
+SET(_src ${TARGET}.cc)
+
+# Set pybind version
+ADD_SUBDIRECTORY(pybind11)
+
+DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
 pybind11_add_module(dealii_${TARGET} py_${TARGET}.cc ${TARGET}.cc)
 
 DEAL_II_SETUP_TARGET(dealii_${TARGET})
 
-FIND_PACKAGE(precice REQUIRED)
+# the environment variable precice_DIR is searched by default
+FIND_PACKAGE(precice 2.0
+        HINTS ${precice_DIR} ${PRECICE_DIR} $ENV{PRECICE_DIR}
+  )
+IF(NOT ${precice_FOUND})
+   MESSAGE(FATAL_ERROR "\n"
+    "*** Could not locate a (sufficiently recent) version of preCICE. ***\n\n"
+    "You may want to either pass a flag -Dprecice_DIR=/path/to/precice to cmake\n"
+    "(where the path points to the installation prefix or the build directory)\n"
+    " or set an environment variable \"precice_DIR\" that contains this path."
+    )
+ENDIF()
+MESSAGE(STATUS "Using the preCICE version found at ${precice_DIR}")
 TARGET_LINK_LIBRARIES(dealii_${TARGET} precice::precice)
-
