@@ -3,9 +3,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
 # Set the name of the project and target:
 SET(TARGET "heat_equation")
-   SET(_src
-   ${TARGET}.cc
-)
+SET(_src ${TARGET}.cc)
 
 # Set pybind version
 ADD_SUBDIRECTORY(pybind11)
