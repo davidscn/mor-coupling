@@ -1,0 +1,4 @@
+[submodule "include/dealii-adapter"]
+	path = include/dealii-adapter
+	url = git@github.com:precice/dealii-adapter.git
+    branch = heat-rebased
