@@ -9,5 +9,6 @@ sys.path.insert(0,"../lib")
 from dealii_heat_equation import HeatExample
 cpp_disc = HeatExample(parameter_file="parameters.prm")
 
-
+cpp_disc.print_configuration()
+cpp_disc.run()
 # wrap as pyMOR discretization

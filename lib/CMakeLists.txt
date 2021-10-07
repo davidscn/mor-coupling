@@ -13,6 +13,11 @@ DEAL_II_INITIALIZE_CACHED_VARIABLES()
 pybind11_add_module(dealii_${TARGET} py_${TARGET}.cc ${TARGET}.cc)
 
 DEAL_II_SETUP_TARGET(dealii_${TARGET})
+DEAL_II_QUERY_GIT_INFORMATION()
+SET_PROPERTY(TARGET  dealii_${TARGET}  APPEND  PROPERTY  COMPILE_DEFINITIONS
+            GIT_BRANCH="${GIT_BRANCH}"
+            GIT_REVISION="${GIT_REVISION}"
+            GIT_SHORTREV="${GIT_SHORTREV}")
 
 # the environment variable precice_DIR is searched by default
 FIND_PACKAGE(precice 2.0

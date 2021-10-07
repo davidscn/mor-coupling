@@ -1,6 +1,7 @@
 #include <deal.II/base/function.h>
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/revision.h>
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/dofs/dof_handler.h>
@@ -44,22 +45,33 @@ namespace Heat_Transfer
   {
   public:
     HeatEquation(const std::string &parameter_file);
+
     void
     run();
+
     void
     make_grid();
+
     void
     setup_system();
+
     void
     assemble_system();
+
     void
     assemble_rhs();
+
     void
     solve_time_step();
+
     void
     output_results() const;
+
     const SparseMatrix<double> &
     stationary_system_matrix() const;
+
+    void
+    print_configuration() const;
 
     const Parameters::AllParameters parameters;
 
@@ -162,6 +174,38 @@ namespace Heat_Transfer
   HeatEquation<dim>::stationary_system_matrix() const
   {
     return stationary_system_matrix_;
+  }
+
+  template <int dim>
+  void
+  HeatEquation<dim>::print_configuration() const
+  {
+    static const unsigned int n_threads = MultithreadInfo::n_threads();
+
+    // Query adapter and deal.II info
+    const std::string adapter_info =
+      GIT_SHORTREV == std::string("") ?
+        "unknown" :
+        (GIT_SHORTREV + std::string(" on branch ") + GIT_BRANCH);
+    const std::string dealii_info =
+      DEAL_II_GIT_SHORTREV == std::string("") ?
+        "unknown" :
+        (DEAL_II_GIT_SHORTREV + std::string(" on branch ") +
+         DEAL_II_GIT_BRANCH);
+
+    std::cout
+      << "-----------------------------------------------------------------------------"
+      << std::endl
+      << "--     . running with " << n_threads << " thread"
+      << (n_threads == 1 ? "" : "s") << std::endl;
+
+    std::cout << "--     . adapter revision " << adapter_info << std::endl;
+    std::cout << "--     . deal.II " << DEAL_II_PACKAGE_VERSION << " (revision "
+              << dealii_info << ")" << std::endl;
+    std::cout
+      << "-----------------------------------------------------------------------------"
+      << std::endl
+      << std::endl;
   }
 
   template <int dim>
