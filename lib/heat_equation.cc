@@ -70,6 +70,9 @@ namespace Heat_Transfer
     const SparseMatrix<double> &
     stationary_system_matrix() const;
 
+    const Vector<double> &
+    get_rhs() const;
+
     void
     print_configuration() const;
 
@@ -174,6 +177,13 @@ namespace Heat_Transfer
   HeatEquation<dim>::stationary_system_matrix() const
   {
     return stationary_system_matrix_;
+  }
+
+  template <int dim>
+  const Vector<double> &
+  HeatEquation<dim>::get_rhs() const
+  {
+    return system_rhs;
   }
 
   template <int dim>

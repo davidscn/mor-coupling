@@ -25,6 +25,7 @@ PYBIND11_PLUGIN(dealii_heat_equation)
       .def("setup_system", &HeatEquation<2>::setup_system)
       .def("solve_time_step", &HeatEquation<2>::solve_time_step)
       .def("stationary_matrix", &HeatEquation<2>::stationary_system_matrix, py::return_value_policy::reference_internal)
+      .def("get_rhs", &HeatEquation<2>::get_rhs, py::return_value_policy::reference_internal)
       .def("run", &HeatEquation<2>::run);
 
   return m.ptr();
