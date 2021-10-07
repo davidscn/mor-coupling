@@ -35,11 +35,9 @@
 #include <fstream>
 #include <iostream>
 
-
 namespace Heat_Transfer
 {
   using namespace dealii;
-
 
   template <int dim>
   class HeatEquation
@@ -48,10 +46,6 @@ namespace Heat_Transfer
     HeatEquation(const std::string &parameter_file);
     void
     run();
-
-    SparseMatrix<double> stationary_system_matrix;
-
-  private:
     void
     make_grid();
     void
@@ -64,21 +58,25 @@ namespace Heat_Transfer
     solve_time_step();
     void
     output_results() const;
+    const SparseMatrix<double> &
+    stationary_system_matrix() const;
 
-    Triangulation<dim>              triangulation;
     const Parameters::AllParameters parameters;
-    const types::boundary_id        interface_boundary_id = 0;
-    const types::boundary_id        dirichlet_boundary_id = 2;
-    FE_Q<dim>                       fe;
-    DoFHandler<dim>                 dof_handler;
+
+  private:
+    Triangulation<dim>       triangulation;
+    const types::boundary_id interface_boundary_id = 0;
+    const types::boundary_id dirichlet_boundary_id = 2;
+    FE_Q<dim>                fe;
+    DoFHandler<dim>          dof_handler;
 
     AffineConstraints<double> constraints;
 
     SparsityPattern      sparsity_pattern;
+    SparseMatrix<double> stationary_system_matrix_;
     SparseMatrix<double> mass_matrix;
     SparseMatrix<double> laplace_matrix;
     SparseMatrix<double> system_matrix;
-
 
     Vector<double> solution;
     Vector<double> heat_flux;
@@ -97,7 +95,6 @@ namespace Heat_Transfer
     const double alpha;
     const double beta;
   };
-
 
   template <int dim>
   class AnalyticSolution : public Function<dim>
@@ -123,8 +120,6 @@ namespace Heat_Transfer
     const double beta;
   };
 
-
-
   template <int dim>
   class RightHandSide : public Function<dim>
   {
@@ -149,8 +144,6 @@ namespace Heat_Transfer
     const double beta;
   };
 
-
-
   template <int dim>
   HeatEquation<dim>::HeatEquation(const std::string &parameter_file)
     : parameters(parameter_file)
@@ -164,7 +157,12 @@ namespace Heat_Transfer
     , beta(1.3)
   {}
 
-
+  template <int dim>
+  const SparseMatrix<double> &
+  HeatEquation<dim>::stationary_system_matrix() const
+  {
+    return stationary_system_matrix_;
+  }
 
   template <int dim>
   void
@@ -188,8 +186,6 @@ namespace Heat_Transfer
     AssertThrow(interface_boundary_id == adapter.deal_boundary_interface_id,
                 ExcMessage("Wrong interface ID in the Adapter specified"));
   }
-
-
 
   template <int dim>
   void
@@ -219,7 +215,7 @@ namespace Heat_Transfer
     mass_matrix.reinit(sparsity_pattern);
     laplace_matrix.reinit(sparsity_pattern);
     system_matrix.reinit(sparsity_pattern);
-    stationary_system_matrix.reinit(sparsity_pattern);
+    stationary_system_matrix_.reinit(sparsity_pattern);
 
     MatrixCreator::create_mass_matrix(dof_handler,
                                       QGauss<dim>(fe.degree + 1),
@@ -228,8 +224,8 @@ namespace Heat_Transfer
                                          QGauss<dim>(fe.degree + 1),
                                          laplace_matrix);
 
-    stationary_system_matrix.copy_from(mass_matrix);
-    stationary_system_matrix.add(theta * time.get_delta_t(), laplace_matrix);
+    stationary_system_matrix_.copy_from(mass_matrix);
+    stationary_system_matrix_.add(theta * time.get_delta_t(), laplace_matrix);
 
     solution.reinit(dof_handler.n_dofs());
     heat_flux.reinit(dof_handler.n_dofs());
@@ -238,8 +234,6 @@ namespace Heat_Transfer
     tmp.reinit(solution.size());
     forcing_terms.reinit(solution.size());
   }
-
-
 
   template <int dim>
   void
@@ -267,8 +261,6 @@ namespace Heat_Transfer
     }
   }
 
-
-
   template <int dim>
   void
   HeatEquation<dim>::assemble_rhs()
@@ -281,7 +273,6 @@ namespace Heat_Transfer
     RightHandSide<dim> rhs_function(alpha, beta), rhs_function_old(alpha, beta);
     rhs_function.set_time(time.current());
     rhs_function_old.set_time(time.current() - time.get_delta_t());
-
 
     Assert(fe.n_components() == rhs_function.n_components,
            ExcDimensionMismatch(fe.n_components(), rhs_function.n_components));
@@ -358,8 +349,6 @@ namespace Heat_Transfer
       } // end cell loop
   }
 
-
-
   template <int dim>
   void
   HeatEquation<dim>::solve_time_step()
@@ -380,8 +369,6 @@ namespace Heat_Transfer
               << std::endl;
     timer.leave_subsection("solve system");
   }
-
-
 
   template <int dim>
   void
@@ -407,8 +394,6 @@ namespace Heat_Transfer
     timer.leave_subsection("output results");
   }
 
-
-
   template <int dim>
   void
   HeatEquation<dim>::run()
@@ -432,7 +417,6 @@ namespace Heat_Transfer
         adapter.save_current_state_if_required(state_variables, time);
 
         time.increment();
-
 
         std::cout << std::endl
                   << "Timestep " << time.get_timestep() << " @ " << std::fixed
