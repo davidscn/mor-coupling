@@ -13,18 +13,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2 # needed to have the local action avail.
       with:
         submodules: true
         path: mor-coupling
-    - uses: actions/checkout@v2
+    - uses: ./mor-coupling/.github/actions/common_setup
       with:
-        repository: pymor/pymor-deal.II
-        submodules: true
-        path: pymor-deal.II
-    - name: pull image
-      run: docker pull ${{ matrix.container }}
-    - name: setup
+        container: ${{ matrix.container }}
+    - name: build
       run: |
          command="sudo apt-get -qy update && \
                   wget https://github.com/precice/precice/releases/download/v2.1.1/libprecice2_2.1.1_focal.deb && \
