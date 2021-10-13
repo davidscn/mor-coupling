@@ -2,7 +2,6 @@ name: Building
 
 on:
   push:
-    branches: [ master, develop ]
   pull_request:
 
 jobs:
@@ -12,19 +11,28 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
+        path: mor-coupling
+    - uses: actions/checkout@v2
+      with:
+        repository: pymor/pymor-deal.II
+        submodules: true
+        path: pymor-deal.II
     - name: setup
       run: |
-         command="sudo apt-get -y update && \
+         command="sudo apt-get -qy update && \
                   wget https://github.com/precice/precice/releases/download/v2.1.1/libprecice2_2.1.1_focal.deb && \
-                  sudo apt-get -y install ./libprecice2_2.1.1_focal.deb && \
-                  git clone https://github.com/${{ github.repository }} && \
-                  cd dealii-adapter && \
-                  git fetch origin ${{ github.ref }} && \
-                  git checkout FETCH_HEAD && \
+                    sudo apt-get -qy install ./libprecice2_2.1.1_focal.deb python3-pip python-is-python3 && \
+                  pip install -q pymor~=2021.1 && \
+                  cd /src/pymor-deal.II && \
+                  pip install . && \
+                  cd /src/mor-coupling && \
                   cmake . && \
                   make";
-         
+
          echo $command
-         
+
          docker pull dealii/dealii:v9.2.0-focal
-         docker run -t dealii/dealii:v9.2.0-focal /bin/sh -c "$command";
+         # need to set uid to allow container user to write to the mount
+         docker run -t --user 0 -v $PWD:/src dealii/dealii:v9.2.0-focal /bin/sh -c "$command";
