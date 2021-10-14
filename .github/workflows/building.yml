@@ -1,0 +1,62 @@
+name: Building
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  deal_image:
+    strategy:
+      matrix:
+        container: ["dealii/dealii:v9.2.0-focal", "dealii/dealii:v9.3.0-focal"]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2 # needed to have the local action avail.
+      with:
+        submodules: true
+        path: mor-coupling
+    - uses: ./mor-coupling/.github/actions/common_setup
+      with:
+        container: ${{ matrix.container }}
+    - name: build
+      run: |
+         command="sudo apt-get -qy update && \
+                  wget https://github.com/precice/precice/releases/download/v2.1.1/libprecice2_2.1.1_focal.deb && \
+                    sudo apt-get -qy install ./libprecice2_2.1.1_focal.deb python3-pip python-is-python3 && \
+                  pip install -q pymor~=2021.1 && \
+                  cd /src/pymor-deal.II && \
+                  pip install . && \
+                  cd /src/mor-coupling && \
+                  cmake . && \
+                  make";
+
+         echo $command
+
+         # need to set uid to allow container user to write to the mount
+         docker run -t --user 0 -v $PWD:/src ${{ matrix.container }} /bin/sh -c "$command";
+  pymor_image:
+    strategy:
+      matrix:
+        container: ["zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.9:8b53a0c0ef5397576c1f9800e5e0ad3008536ea8",
+          "zivgitlab.wwu.io/pymor/docker/pymor/precice_py3.7:8b53a0c0ef5397576c1f9800e5e0ad3008536ea8"]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2 # needed to have the local action avail.
+      with:
+        submodules: true
+        path: mor-coupling
+    - uses: ./mor-coupling/.github/actions/common_setup
+      with:
+        container: ${{ matrix.container }}
+    - name: build
+      run: |
+         command="cd /src/mor-coupling && \
+                  cmake . && \
+                  make";
+
+         echo $command
+
+         # need to set uid to allow container user to write to the mount
+         docker run -t --user 0 -v $PWD:/src ${{ matrix.container }} /bin/sh -c "$command";
