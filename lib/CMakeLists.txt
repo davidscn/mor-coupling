@@ -31,5 +31,5 @@ IF(NOT ${precice_FOUND})
     " or set an environment variable \"precice_DIR\" that contains this path."
     )
 ENDIF()
-MESSAGE(STATUS "Using the preCICE version found at ${precice_DIR}")
+MESSAGE(STATUS "Found preCICE version ${precice_VERSION} at ${precice_DIR}")
 TARGET_LINK_LIBRARIES(dealii_${TARGET} precice::precice)
