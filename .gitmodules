@@ -1,7 +1,7 @@
 [submodule "include/dealii-adapter"]
 	path = include/dealii-adapter
-	url = git@github.com:precice/dealii-adapter.git
+	url = https://github.com/precice/dealii-adapter.git
     branch = heat-rebased
 [submodule "lib/pybind11"]
 	path = lib/pybind11
-	url = git@github.com:pybind/pybind11.git
+	url = https://github.com/pybind/pybind11.git
