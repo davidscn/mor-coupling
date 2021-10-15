@@ -73,8 +73,20 @@ namespace Heat_Transfer
     const Vector<double> &
     get_rhs() const;
 
+    const Vector<double> &
+    get_solution() const;
+
     void
     print_configuration() const;
+
+    void
+    update_rhs();
+
+    bool
+    is_coupling_ongoing() const;
+
+    void
+    initialize_precice();
 
     const Parameters::AllParameters parameters;
 
@@ -170,7 +182,9 @@ namespace Heat_Transfer
     , theta(1)
     , alpha(3)
     , beta(1.3)
-  {}
+  {
+    print_configuration();
+  }
 
   template <int dim>
   const SparseMatrix<double> &
@@ -185,6 +199,15 @@ namespace Heat_Transfer
   {
     return system_rhs;
   }
+
+
+  template <int dim>
+  const Vector<double> &
+  HeatEquation<dim>::get_solution() const
+  {
+    return solution;
+  }
+
 
   template <int dim>
   void
@@ -217,6 +240,39 @@ namespace Heat_Transfer
       << std::endl
       << std::endl;
   }
+
+
+  template <int dim>
+  void
+  HeatEquation<dim>::update_rhs()
+  {
+    adapter.advance(solution, heat_flux, time.get_delta_t());
+    assemble_rhs();
+  }
+
+
+  template <int dim>
+  bool
+  HeatEquation<dim>::is_coupling_ongoing() const
+  {
+    return adapter.precice.isCouplingOngoing();
+  }
+
+  template <int dim>
+  void
+  HeatEquation<dim>::initialize_precice()
+  {
+    AnalyticSolution<dim> initial_condition(alpha, beta);
+    initial_condition.set_time(0);
+    VectorTools::interpolate(dof_handler, initial_condition, old_solution);
+    solution  = old_solution;
+    heat_flux = 0;
+    output_results();
+
+    adapter.initialize(dof_handler, solution, heat_flux);
+    state_variables = {&solution, &old_solution, &system_rhs};
+  }
+
 
   template <int dim>
   void
