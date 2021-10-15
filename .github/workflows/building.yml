@@ -2,7 +2,7 @@ name: Building
 
 on:
   push: [ main ]
-  pull_request:
+  pull_request: [ main ]
 
 jobs:
   deal_image:
