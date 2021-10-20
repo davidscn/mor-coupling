@@ -47,13 +47,12 @@
         x-dead="true" />
     </participant>
 
-    <m2n:sockets from="Dirichlet" to="Neumann" exchange-directory=".." />
+    <m2n:sockets from="Dirichlet" to="Neumann" exchange-directory="." />
 
-    <coupling-scheme:serial-implicit>
+    <coupling-scheme:serial-explicit>
       <participants first="Dirichlet" second="Neumann" />
       <max-time value="1.0" />
       <time-window-size value="0.1" />
-      <max-iterations value="100" />
       <exchange data="Heat-Flux" mesh="Dirichlet-Mesh" from="Dirichlet" to="Neumann" />
       <exchange
         data="Temperature"
@@ -61,15 +60,6 @@
         from="Neumann"
         to="Dirichlet"
         initialize="true" />
-      <relative-convergence-measure data="Heat-Flux" mesh="Dirichlet-Mesh" limit="1e-5" />
-      <relative-convergence-measure data="Temperature" mesh="Neumann-Mesh" limit="1e-5" />
-      <acceleration:IQN-ILS>
-        <data name="Temperature" mesh="Neumann-Mesh" />
-        <initial-relaxation value="0.1" />
-        <max-used-iterations value="10" />
-        <time-windows-reused value="5" />
-        <filter type="QR2" limit="1e-3" />
-      </acceleration:IQN-ILS>
-    </coupling-scheme:serial-implicit>
+    </coupling-scheme:serial-explicit>
   </solver-interface>
 </precice-configuration>
