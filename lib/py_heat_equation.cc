@@ -26,7 +26,7 @@ PYBIND11_PLUGIN(dealii_heat_equation)
          py::arg("parameter_file") = std::string("parameters"))
     .def("make_grid", &HeatEquation<2>::make_grid)
     .def("setup_system", &HeatEquation<2>::setup_system)
-    .def("update_rhs", &HeatEquation<2>::update_rhs)
+    .def("advance", &HeatEquation<2>::advance)
     .def("solve_time_step", &HeatEquation<2>::solve_time_step)
     .def("stationary_matrix",
          &HeatEquation<2>::stationary_system_matrix,
@@ -37,7 +37,12 @@ PYBIND11_PLUGIN(dealii_heat_equation)
     .def("get_solution",
          &HeatEquation<2>::get_solution,
          py::return_value_policy::reference_internal)
+    .def("get_coupling_data",
+         &HeatEquation<2>::get_coupling_data,
+         py::return_value_policy::reference_internal)
     .def("initialize_precice", &HeatEquation<2>::initialize_precice)
+    .def("output_results", &HeatEquation<2>::output_results)
+    .def("assemble_rhs", &HeatEquation<2>::assemble_rhs)
     .def("is_coupling_ongoing", &HeatEquation<2>::is_coupling_ongoing);
 
   return m.ptr();

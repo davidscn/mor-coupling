@@ -59,13 +59,15 @@ namespace Heat_Transfer
     assemble_system();
 
     void
-    assemble_rhs();
+    assemble_rhs(const Vector<double> &heat_flux_,
+                 const Vector<double> &old_solution,
+                 Vector<double>       &rhs_);
 
     void
     solve_time_step();
 
     void
-    output_results() const;
+    output_results(const Vector<double> &solution_, const int file_index) const;
 
     const SparseMatrix<double> &
     stationary_system_matrix() const;
@@ -76,17 +78,21 @@ namespace Heat_Transfer
     const Vector<double> &
     get_solution() const;
 
+    const Vector<double> &
+    get_coupling_data() const;
+
     void
     print_configuration() const;
 
     void
-    update_rhs();
+    advance(const Vector<double> &solution_, Vector<double> &heat_flux_);
 
     bool
     is_coupling_ongoing() const;
 
     void
-    initialize_precice();
+    initialize_precice(Vector<double> &solution_,
+                       Vector<double> &coupling_data_);
 
     const Parameters::AllParameters parameters;
 
@@ -181,7 +187,7 @@ namespace Heat_Transfer
     , adapter(parameters, interface_boundary_id)
     , theta(1)
     , alpha(3)
-    , beta(1.3)
+    , beta(0)
   {
     print_configuration();
   }
@@ -206,6 +212,14 @@ namespace Heat_Transfer
   HeatEquation<dim>::get_solution() const
   {
     return solution;
+  }
+
+
+  template <int dim>
+  const Vector<double> &
+  HeatEquation<dim>::get_coupling_data() const
+  {
+    return heat_flux;
   }
 
 
@@ -244,10 +258,10 @@ namespace Heat_Transfer
 
   template <int dim>
   void
-  HeatEquation<dim>::update_rhs()
+  HeatEquation<dim>::advance(const Vector<double> &solution_,
+                             Vector<double>       &heat_flux_)
   {
-    adapter.advance(solution, heat_flux, time.get_delta_t());
-    assemble_rhs();
+    adapter.advance(solution_, heat_flux_, time.get_delta_t());
   }
 
 
@@ -260,16 +274,17 @@ namespace Heat_Transfer
 
   template <int dim>
   void
-  HeatEquation<dim>::initialize_precice()
+  HeatEquation<dim>::initialize_precice(Vector<double> &solution_,
+                                        Vector<double> &coupling_data_)
   {
     AnalyticSolution<dim> initial_condition(alpha, beta);
     initial_condition.set_time(0);
     VectorTools::interpolate(dof_handler, initial_condition, old_solution);
-    solution  = old_solution;
-    heat_flux = 0;
-    output_results();
+    solution_      = old_solution;
+    coupling_data_ = 0;
+    output_results(solution_, 0);
 
-    adapter.initialize(dof_handler, solution, heat_flux);
+    adapter.initialize(dof_handler, solution_, coupling_data_);
     state_variables = {&solution, &old_solution, &system_rhs};
   }
 
@@ -349,7 +364,8 @@ namespace Heat_Transfer
   void
   HeatEquation<dim>::assemble_system()
   {
-    assemble_rhs();
+    // assemble_rhs();
+    Assert(false, ExcNotImplemented());
     system_matrix.copy_from(mass_matrix);
     system_matrix.add(theta * time.get_delta_t(), laplace_matrix);
 
@@ -373,12 +389,15 @@ namespace Heat_Transfer
 
   template <int dim>
   void
-  HeatEquation<dim>::assemble_rhs()
+  HeatEquation<dim>::assemble_rhs(const Vector<double> &heat_flux_,
+                                  const Vector<double> &old_solution_,
+                                  Vector<double>       &rhs_)
   {
-    mass_matrix.vmult(system_rhs, old_solution);
+    mass_matrix.vmult(rhs_, old_solution_);
 
-    laplace_matrix.vmult(tmp, old_solution);
-    system_rhs.add(-(1 - theta) * time.get_delta_t(), tmp);
+    Assert(tmp.size() == solution.size(), ExcInternalError());
+    laplace_matrix.vmult(tmp, old_solution_);
+    rhs_.add(-(1 - theta) * time.get_delta_t(), tmp);
 
     RightHandSide<dim> rhs_function(alpha, beta), rhs_function_old(alpha, beta);
     rhs_function.set_time(time.current());
@@ -442,7 +461,7 @@ namespace Heat_Transfer
               (face->boundary_id() == interface_boundary_id))
             {
               fe_f_values.reinit(cell, face);
-              fe_f_values.get_function_values(heat_flux, local_flux);
+              fe_f_values.get_function_values(heat_flux_, local_flux);
 
               for (unsigned int f_q_point = 0; f_q_point < n_face_q_points;
                    ++f_q_point)
@@ -455,7 +474,7 @@ namespace Heat_Transfer
                   }
             }
         cell->get_dof_indices(dofs);
-        constraints.distribute_local_to_global(cell_vector, dofs, system_rhs);
+        constraints.distribute_local_to_global(cell_vector, dofs, rhs_);
       } // end cell loop
   }
 
@@ -482,23 +501,22 @@ namespace Heat_Transfer
 
   template <int dim>
   void
-  HeatEquation<dim>::output_results() const
+  HeatEquation<dim>::output_results(const Vector<double> &solution_,
+                                    const int             file_index) const
   {
     timer.enter_subsection("output results");
-    std::cout << "Writing solution to " << time.get_timestep() << std::endl;
+    std::cout << "Writing solution to " << std::to_string(file_index)
+              << std::endl;
 
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler(dof_handler);
-    data_out.add_data_vector(solution, "Temperature");
+    data_out.add_data_vector(solution_, "Temperature");
 
     data_out.build_patches();
 
-    data_out.set_flags(
-      DataOutBase::VtkFlags(time.current(), time.get_timestep()));
-
     const std::string filename =
-      "solution-" + Utilities::int_to_string(time.get_timestep(), 3) + ".vtk";
+      "solution-" + std::to_string(file_index) + ".vtk";
     std::ofstream output(filename);
     data_out.write_vtk(output);
     timer.leave_subsection("output results");
@@ -517,7 +535,7 @@ namespace Heat_Transfer
     VectorTools::interpolate(dof_handler, initial_condition, old_solution);
     solution  = old_solution;
     heat_flux = 0;
-    output_results();
+    output_results(solution, 0);
 
     adapter.initialize(dof_handler, solution, heat_flux);
     state_variables = {&solution, &old_solution, &system_rhs};
@@ -544,7 +562,7 @@ namespace Heat_Transfer
           {
             old_solution = solution;
             if (time.get_timestep() % parameters.output_interval == 0)
-              output_results();
+              output_results(solution, time.get_timestep());
           }
       }
   }
