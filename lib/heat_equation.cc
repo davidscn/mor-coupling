@@ -61,7 +61,7 @@ namespace Heat_Transfer
     void
     assemble_rhs(const Vector<double> &heat_flux_,
                  const Vector<double> &old_solution,
-                 Vector<double>       &rhs_);
+                 Vector<double> &      rhs_);
 
     void
     solve_time_step();
@@ -259,7 +259,7 @@ namespace Heat_Transfer
   template <int dim>
   void
   HeatEquation<dim>::advance(const Vector<double> &solution_,
-                             Vector<double>       &heat_flux_)
+                             Vector<double> &      heat_flux_)
   {
     adapter.advance(solution_, heat_flux_, time.get_delta_t());
   }
@@ -391,7 +391,7 @@ namespace Heat_Transfer
   void
   HeatEquation<dim>::assemble_rhs(const Vector<double> &heat_flux_,
                                   const Vector<double> &old_solution_,
-                                  Vector<double>       &rhs_)
+                                  Vector<double> &      rhs_)
   {
     mass_matrix.vmult(rhs_, old_solution_);
 
