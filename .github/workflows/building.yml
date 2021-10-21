@@ -40,8 +40,8 @@ jobs:
   pymor_image:
     strategy:
       matrix:
-        container: ["zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.9:8b53a0c0ef5397576c1f9800e5e0ad3008536ea8",
-          "zivgitlab.wwu.io/pymor/docker/pymor/precice_py3.7:8b53a0c0ef5397576c1f9800e5e0ad3008536ea8"]
+        container: ["zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.9:189cd1e9388cb12a6f3e98205b11166714f56f9a",
+          "zivgitlab.wwu.io/pymor/docker/pymor/precice_py3.7:189cd1e9388cb12a6f3e98205b11166714f56f9a"]
     runs-on: ubuntu-latest
 
     steps:
