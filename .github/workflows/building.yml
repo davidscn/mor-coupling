@@ -61,4 +61,4 @@ jobs:
          echo $command
 
          # need to set uid to allow container user to write to the mount
-         docker run -t --user 0 -v $PWD:/src ${{ matrix.container }} /bin/sh -c "$command";
+         docker run -t -e LOCAL_USER_ID=0 -v $PWD:/src ${{ matrix.container }} /bin/sh -c "$command";
