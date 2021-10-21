@@ -40,8 +40,8 @@ jobs:
   pymor_image:
     strategy:
       matrix:
-        container: ["zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.9:8b53a0c0ef5397576c1f9800e5e0ad3008536ea8",
-          "zivgitlab.wwu.io/pymor/docker/pymor/precice_py3.7:8b53a0c0ef5397576c1f9800e5e0ad3008536ea8"]
+        container: ["zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.9:189cd1e9388cb12a6f3e98205b11166714f56f9a",
+          "zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.7:189cd1e9388cb12a6f3e98205b11166714f56f9a"]
     runs-on: ubuntu-latest
 
     steps:
@@ -54,11 +54,13 @@ jobs:
         container: ${{ matrix.container }}
     - name: build
       run: |
-         command="cd /src/mor-coupling && \
+         command="apt update -q && \
+                  apt install -yq libgsl-dev libarpack2-dev liblapack-dev libmuparser-dev libmetis-dev libtbb-dev && \
+                  cd /src/mor-coupling && \
                   cmake . && \
                   make";
 
          echo $command
 
          # need to set uid to allow container user to write to the mount
-         docker run -t --user 0 -v $PWD:/src ${{ matrix.container }} /bin/sh -c "$command";
+         docker run -t -e LOCAL_USER_ID=0 -v $PWD:/src ${{ matrix.container }} /bin/sh -c "$command";
