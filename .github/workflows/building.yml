@@ -54,7 +54,9 @@ jobs:
         container: ${{ matrix.container }}
     - name: build
       run: |
-         command="cd /src/mor-coupling && \
+         command="apt update -q && \
+                  apt install -yq libgsl-dev libarpack2-dev liblapack-dev libmuparser-dev libmetis-dev libtbb-dev && \
+                  cd /src/mor-coupling && \
                   cmake . && \
                   make";
 
