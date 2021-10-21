@@ -17,9 +17,9 @@
 namespace py = pybind11;
 using namespace Heat_Transfer;
 
-PYBIND11_PLUGIN(dealii_heat_equation)
+PYBIND11_MODULE(dealii_heat_equation, m)
 {
-  py::module m("dealii_heat_equation", "deal.II heat example");
+  m.doc() = "deal.II heat example";
 
   py::class_<HeatEquation<2>>(m, "HeatExample")
     .def(py::init<const std::string &>(),
@@ -44,6 +44,4 @@ PYBIND11_PLUGIN(dealii_heat_equation)
     .def("output_results", &HeatEquation<2>::output_results)
     .def("assemble_rhs", &HeatEquation<2>::assemble_rhs)
     .def("is_coupling_ongoing", &HeatEquation<2>::is_coupling_ongoing);
-
-  return m.ptr();
 }
