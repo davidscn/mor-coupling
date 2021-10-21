@@ -1,4 +1,4 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.2.0)
 
 # Set the target and the target source
 SET( TARGET "mor-coupling" )
@@ -30,4 +30,6 @@ PROJECT(${TARGET})
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include/dealii-adapter/include)
 SET(PYBIND11_PYTHON_VERSION "3" CACHE STRING "Python version to use for compiling the example library")
 
+LIST(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+INCLUDE(pymor_deal_ii_setup_target)
 ADD_SUBDIRECTORY(lib)
