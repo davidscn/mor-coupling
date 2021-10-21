@@ -1,5 +1,5 @@
 # CMake minimum version
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.2.0)
 
 # Set the name of the project and target:
 SET(TARGET "heat_equation")
@@ -12,7 +12,7 @@ DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
 pybind11_add_module(dealii_${TARGET} py_${TARGET}.cc ${TARGET}.cc)
 
-DEAL_II_SETUP_TARGET(dealii_${TARGET})
+PYMOR_DEAL_II_SETUP_TARGET(dealii_${TARGET})
 DEAL_II_QUERY_GIT_INFORMATION()
 SET_PROPERTY(TARGET  dealii_${TARGET}  APPEND  PROPERTY  COMPILE_DEFINITIONS
             GIT_BRANCH="${GIT_BRANCH}"
@@ -32,4 +32,4 @@ IF(NOT ${precice_FOUND})
     )
 ENDIF()
 MESSAGE(STATUS "Found preCICE version ${precice_VERSION} at ${precice_DIR}")
-TARGET_LINK_LIBRARIES(dealii_${TARGET} precice::precice)
+TARGET_LINK_LIBRARIES(dealii_${TARGET} PRIVATE precice::precice)
