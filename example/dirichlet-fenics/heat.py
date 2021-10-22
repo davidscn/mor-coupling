@@ -2,10 +2,9 @@
 Heat equation with Dirichlet conditions. (Dirichlet problem)
   u'= Laplace(u) + f  in the unit square [0,1] x [0,1]
   u = u_C             on the coupling boundary at x = 1
-  u = u_D             on the remaining boundary
-  u = u_0             at t = 0
-  u = 1 + x^2 + alpha*y^2 + \beta*t
-  f = beta - 2 - 2*alpha
+  u = u_D = 3.5       at x = 0
+  u = u_0 = 3         at t = 0
+  f = 0
 """
 
 from __future__ import print_function, division
@@ -64,11 +63,11 @@ V_g = VectorFunctionSpace(mesh, 'P', 1)
 W = V_g.sub(0).collapse()
 
 # Define boundary conditions
-u_D = Expression('1 + x[0]*x[0] + alpha*x[1]*x[1] + beta*t', degree=2, alpha=alpha, beta=beta, t=0)
+u_D = Expression('3', degree=2, alpha=alpha, beta=beta, t=0)
 u_D_function = interpolate(u_D, V)
 
 # Define flux in x direction
-f_N = Expression("2 * x[0]", degree=1, alpha=alpha, t=0)
+f_N = Expression("0", degree=1, alpha=alpha, t=0)
 f_N_function = interpolate(f_N, W)
 
 # Define initial value
@@ -87,10 +86,10 @@ dt.assign(np.min([fenics_dt, precice_dt]))
 # Define variational problem
 u = TrialFunction(V)
 v = TestFunction(V)
-f = Expression('beta - 2 - 2*alpha', degree=2, alpha=alpha, beta=beta, t=0)
+f = Expression('0', degree=2, alpha=alpha, beta=beta, t=0)
 F = u * v / dt * dx + dot(grad(u), grad(v)) * dx - (u_n / dt + f) * v * dx
 
-bcs = [DirichletBC(V, u_D, remaining_boundary)]
+bcs = [DirichletBC(V, Expression('3.5', degree=2, alpha=alpha, beta=beta, t=0), remaining_boundary)]
 
 # Set boundary conditions at coupling interface once wrt to the coupling
 # expression

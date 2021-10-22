@@ -50,16 +50,16 @@
     <m2n:sockets from="Dirichlet" to="Neumann" exchange-directory=".." />
 
     <coupling-scheme:serial-explicit>
-      <participants first="Dirichlet" second="Neumann" />
+      <participants first="Neumann" second="Dirichlet" />
       <max-time value="1.0" />
       <time-window-size value="0.1" />
-      <exchange data="Heat-Flux" mesh="Dirichlet-Mesh" from="Dirichlet" to="Neumann" />
+      <exchange data="Heat-Flux" mesh="Dirichlet-Mesh" from="Dirichlet" to="Neumann"/>
       <exchange
         data="Temperature"
         mesh="Neumann-Mesh"
         from="Neumann"
         to="Dirichlet"
-        initialize="true" />
+        initialize="false" />
     </coupling-scheme:serial-explicit>
   </solver-interface>
 </precice-configuration>
