@@ -135,10 +135,6 @@ u_np1 = Function(V)
 u_np1.rename("Temperature", "")
 t = 0
 
-# reference solution at t=0
-u_ref = interpolate(u_D, V)
-u_ref.rename("reference", " ")
-
 # mark mesh w.r.t ranks
 mesh_rank = MeshFunction("size_t", mesh, mesh.topology().dim())
 if problem is ProblemType.NEUMANN:
@@ -149,19 +145,12 @@ mesh_rank.rename("myRank", "")
 
 # Generating output files
 temperature_out = File("out/%s.pvd" % precice.get_participant_name())
-ref_out = File("out/ref%s.pvd" % precice.get_participant_name())
-error_out = File("out/error%s.pvd" % precice.get_participant_name())
-ranks = File("out/ranks%s.pvd" % precice.get_participant_name())
 
 # output solution and reference solution at t=0, n=0
 n = 0
 print('output u^%d and u_ref^%d' % (n, n))
 temperature_out << u_n
-ref_out << u_ref
-ranks << mesh_rank
 
-error_total, error_pointwise = compute_errors(u_n, u_ref, V)
-error_out << error_pointwise
 
 # set t_1 = t_0 + dt, this gives u_D^1
 # call dt(0) to evaluate FEniCS Constant. Todo: is there a better way?
@@ -212,15 +201,9 @@ while precice.is_coupling_ongoing():
         n += 1
 
     if precice.is_time_window_complete():
-        u_ref = interpolate(u_D, V)
-        u_ref.rename("reference", " ")
-        error, error_pointwise = compute_errors(u_n, u_ref, V, total_error_tol=error_tol)
-        print('n = %d, t = %.2f: L2 error on domain = %.3g' % (n, t, error))
         # output solution and reference solution at t_n+1
         print('output u^%d and u_ref^%d' % (n, n))
         temperature_out << u_n
-        ref_out << u_ref
-        error_out << error_pointwise
 
     # Update Dirichlet BC
     u_D.t = t + float(dt)
