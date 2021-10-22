@@ -140,11 +140,10 @@ namespace Heat_Transfer
     {}
 
     virtual double
-    value(const Point<dim> &p, const unsigned int component = 0) const override
+    value(const Point<dim> &, const unsigned int component = 0) const override
     {
       (void)component;
       AssertIndexRange(component, 1);
-      const double time = this->get_time();
       return 3;
     }
 
