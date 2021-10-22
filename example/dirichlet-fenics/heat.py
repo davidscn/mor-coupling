@@ -1,23 +1,7 @@
 """
-The basic example is taken from "Langtangen, Hans Petter, and Anders Logg. Solving PDEs in Python: The FEniCS
-Tutorial I. Springer International Publishing, 2016."
-
-The example code has been extended with preCICE API calls and mixed boundary conditions to allow for a Dirichlet-Neumann
-coupling of two separate heat equations.
-
-The original source code can be found on https://github.com/hplgit/fenics-tutorial/blob/master/pub/python/vol1/ft03_heat.py.
-
 Heat equation with Dirichlet conditions. (Dirichlet problem)
   u'= Laplace(u) + f  in the unit square [0,1] x [0,1]
   u = u_C             on the coupling boundary at x = 1
-  u = u_D             on the remaining boundary
-  u = u_0             at t = 0
-  u = 1 + x^2 + alpha*y^2 + \beta*t
-  f = beta - 2 - 2*alpha
-
-Heat equation with mixed boundary conditions. (Neumann problem)
-  u'= Laplace(u) + f  in the shifted unit square [1,2] x [0,1]
-  du/dn = f_N         on the coupling boundary at x = 1
   u = u_D             on the remaining boundary
   u = u_0             at t = 0
   u = 1 + x^2 + alpha*y^2 + \beta*t
@@ -69,12 +53,8 @@ error_tol = args.error_tol
 alpha = 3  # parameter alpha
 beta = 1.3  # parameter beta
 
-if args.dirichlet and not args.neumann:
-    problem = ProblemType.DIRICHLET
-    domain_part = DomainPart.LEFT
-elif args.neumann and not args.dirichlet:
-    problem = ProblemType.NEUMANN
-    domain_part = DomainPart.RIGHT
+problem = ProblemType.DIRICHLET
+domain_part = DomainPart.LEFT
 
 mesh, coupling_boundary, remaining_boundary = get_geometry(domain_part)
 
@@ -87,10 +67,9 @@ W = V_g.sub(0).collapse()
 u_D = Expression('1 + x[0]*x[0] + alpha*x[1]*x[1] + beta*t', degree=2, alpha=alpha, beta=beta, t=0)
 u_D_function = interpolate(u_D, V)
 
-if problem is ProblemType.DIRICHLET:
-    # Define flux in x direction
-    f_N = Expression("2 * x[0]", degree=1, alpha=alpha, t=0)
-    f_N_function = interpolate(f_N, W)
+# Define flux in x direction
+f_N = Expression("2 * x[0]", degree=1, alpha=alpha, t=0)
+f_N_function = interpolate(f_N, W)
 
 # Define initial value
 u_n = interpolate(u_D, V)
@@ -99,12 +78,8 @@ u_n.rename("Temperature", "")
 precice, precice_dt, initial_data = None, 0.0, None
 
 # Initialize the adapter according to the specific participant
-if problem is ProblemType.DIRICHLET:
-    precice = Adapter(adapter_config_filename="precice-adapter-config-D.json")
-    precice_dt = precice.initialize(coupling_boundary, read_function_space=V, write_object=f_N_function)
-elif problem is ProblemType.NEUMANN:
-    precice = Adapter(adapter_config_filename="precice-adapter-config-N.json")
-    precice_dt = precice.initialize(coupling_boundary, read_function_space=W, write_object=u_D_function)
+precice = Adapter(adapter_config_filename="precice-adapter-config-D.json")
+precice_dt = precice.initialize(coupling_boundary, read_function_space=V, write_object=f_N_function)
 
 dt = Constant(0)
 dt.assign(np.min([fenics_dt, precice_dt]))
@@ -120,13 +95,8 @@ bcs = [DirichletBC(V, u_D, remaining_boundary)]
 # Set boundary conditions at coupling interface once wrt to the coupling
 # expression
 coupling_expression = precice.create_coupling_expression()
-if problem is ProblemType.DIRICHLET:
-    # modify Dirichlet boundary condition on coupling interface
-    bcs.append(DirichletBC(V, coupling_expression, coupling_boundary))
-if problem is ProblemType.NEUMANN:
-    # modify Neumann boundary condition on coupling interface, modify weak
-    # form correspondingly
-    F += v * coupling_expression * dolfin.ds
+# modify Dirichlet boundary condition on coupling interface
+bcs.append(DirichletBC(V, coupling_expression, coupling_boundary))
 
 a, L = lhs(F), rhs(F)
 
@@ -135,18 +105,10 @@ u_np1 = Function(V)
 u_np1.rename("Temperature", "")
 t = 0
 
-# mark mesh w.r.t ranks
-mesh_rank = MeshFunction("size_t", mesh, mesh.topology().dim())
-if problem is ProblemType.NEUMANN:
-    mesh_rank.set_all(MPI.rank(MPI.comm_world) + 4)
-else:
-    mesh_rank.set_all(MPI.rank(MPI.comm_world) + 0)
-mesh_rank.rename("myRank", "")
-
 # Generating output files
 temperature_out = File("out/%s.pvd" % precice.get_participant_name())
 
-# output solution and reference solution at t=0, n=0
+# output solution at t=0, n=0
 n = 0
 print('output u^%d and u_ref^%d' % (n, n))
 temperature_out << u_n
@@ -157,9 +119,8 @@ temperature_out << u_n
 u_D.t = t + dt(0)
 f.t = t + dt(0)
 
-if problem is ProblemType.DIRICHLET:
-    flux = Function(V_g)
-    flux.rename("Heat-Flux", "")
+flux = Function(V_g)
+flux.rename("Heat-Flux", "")
 
 while precice.is_coupling_ongoing():
 
@@ -178,14 +139,10 @@ while precice.is_coupling_ongoing():
     solve(a == L, u_np1, bcs)
 
     # Write data to preCICE according to which problem is being solved
-    if problem is ProblemType.DIRICHLET:
-        # Dirichlet problem reads temperature and writes flux on boundary to Neumann problem
-        determine_gradient(V_g, u_np1, flux)
-        flux_x = interpolate(flux.sub(0), W)
-        precice.write_data(flux_x)
-    elif problem is ProblemType.NEUMANN:
-        # Neumann problem reads flux and writes temperature on boundary to Dirichlet problem
-        precice.write_data(u_np1)
+    # Dirichlet problem reads temperature and writes flux on boundary to Neumann problem
+    determine_gradient(V_g, u_np1, flux)
+    flux_x = interpolate(flux.sub(0), W)
+    precice.write_data(flux_x)
 
     precice_dt = precice.advance(dt(0))
 
@@ -202,12 +159,9 @@ while precice.is_coupling_ongoing():
 
     if precice.is_time_window_complete():
         # output solution and reference solution at t_n+1
-        print('output u^%d and u_ref^%d' % (n, n))
+        print('output u^%d' % (n))
         temperature_out << u_n
 
     # Update Dirichlet BC
     u_D.t = t + float(dt)
     f.t = t + float(dt)
-
-# Hold plot
-precice.finalize()
