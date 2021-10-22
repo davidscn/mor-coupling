@@ -145,7 +145,7 @@ namespace Heat_Transfer
       (void)component;
       AssertIndexRange(component, 1);
       const double time = this->get_time();
-      return 1 + (p[0] * p[0]) + (alpha * p[1] * p[1]) + (beta * time);
+      return 3;
     }
 
   private:
@@ -169,7 +169,7 @@ namespace Heat_Transfer
     {
       (void)component;
       Assert(component == 0, ExcIndexRange(component, 0, 1));
-      return beta - 2 - (2 * alpha);
+      return 0;
     }
 
   private:
