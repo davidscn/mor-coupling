@@ -47,7 +47,7 @@
         x-dead="true" />
     </participant>
 
-    <m2n:sockets from="Dirichlet" to="Neumann" exchange-directory="." />
+    <m2n:sockets from="Dirichlet" to="Neumann" exchange-directory=".." />
 
     <coupling-scheme:serial-explicit>
       <participants first="Dirichlet" second="Neumann" />
