@@ -12,7 +12,7 @@ from pymor.vectorarrays.interface import VectorArray
 
 
 import pymor_dealii_bindings as pd2
-sys.path.insert(0, "../lib")
+sys.path.insert(0, "../../lib")
 from dealii_heat_equation import HeatExample
 
 
