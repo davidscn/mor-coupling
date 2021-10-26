@@ -22,24 +22,8 @@ jobs:
         container: ${{ matrix.container }}
     - name: build
       run: |
-         command="sudo apt-get -qy update && \
-                  wget https://github.com/precice/precice/releases/download/v2.1.1/libprecice2_2.1.1_focal.deb && \
-                    sudo apt-get -qy install ./libprecice2_2.1.1_focal.deb python3-pip python-is-python3 && \
-                  sudo apt-get -qy install fenics && \
-                  python3 -m pip install -q pymor~=2021.1 && \
-                  cd /src/pymor-deal.II && \
-                  python3 -m pip install . && \
-                  python3 -m pip install fenicsprecise && \
-                  cd /src/mor-coupling && \
-                  cmake . && \
-                  make && \
-                  ./example/dirichlet-fenics/run.sh & \
-                  python3 /src/mor-coupling/example/neumann-reduced/heat_equation_reduced.py";
-
-         echo $command
-
          # need to set uid to allow container user to write to the mount
-         docker run -t --user 0 -v $PWD:/src ${{ matrix.container }} /bin/sh -c "$command";
+         docker run -t --user 0 -v $PWD:/src ${{ matrix.container }} /src/mor-coupling/.github/workflows/run_deal.ii.bash;
   pymor_image:
     strategy:
       matrix:
@@ -57,16 +41,5 @@ jobs:
         container: ${{ matrix.container }}
     - name: build
       run: |
-         command="apt update -q && \
-                  apt install -yq libgsl-dev libarpack2-dev liblapack-dev libmuparser-dev libmetis-dev libtbb-dev && \
-                  python -m pip install fenicsprecise && \
-                  cd /src/mor-coupling && \
-                  cmake . && \
-                  make && \
-                  ./example/dirichlet-fenics/run.sh & \
-                  python /src/mor-coupling/example/neumann-reduced/heat_equation_reduced.py";
-
-         echo $command
-
          # need to set uid to allow container user to write to the mount
-         docker run -t -e LOCAL_USER_ID=0 -v $PWD:/src ${{ matrix.container }} /bin/sh -c "$command";
+         docker run -t -e LOCAL_USER_ID=0 -v $PWD:/src ${{ matrix.container }} /src/mor-coupling/.github/workflows/run_pymor.bash
