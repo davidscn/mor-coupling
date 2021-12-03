@@ -1,5 +1,4 @@
 from pymor.models.interface import Model
-from pymor.operators.constructions import VectorOperator
 from pymor.operators.interface import Operator
 import sys
 
@@ -30,21 +29,21 @@ class CouplingOperator(Operator):
     """
 
     def __init__(self, dealii, solution, coupling_rhs, coupling_input):
-        dealii.initialize_precice(solution.as_range_array()._list[0].impl,
-                                  coupling_input.as_range_array()._list[0].impl)
+        dealii.initialize_precice(solution._list[0].impl,
+                                  coupling_input._list[0].impl)
         self.__auto_init(locals())
 
     def apply_advance(self, U, mu=None):
-        assert U.source == self.solution.source
-        dealii.advance(U.as_range_array()._list[0].impl, self.coupling_input.as_range_array()._list[0].impl)
+        assert U.space == self.solution.space
+        dealii.advance(U._list[0].impl, self.coupling_input._list[0].impl)
 
     def apply(self, U, mu=None):
         pass
 
     def apply_assemble(self, U, mu=None):
-        assert U.source == self.solution.source
-        dealii.assemble_rhs(self.coupling_input.as_range_array()._list[0].impl, U.as_range_array()._list[0].impl,
-                            self.coupling_rhs.as_range_array()._list[0].impl)
+        assert U.space == self.solution.space
+        dealii.assemble_rhs(self.coupling_input._list[0].impl, U._list[0].impl,
+                            self.coupling_rhs._list[0].impl)
         return self.coupling_rhs
 
 
@@ -78,22 +77,15 @@ class StationaryPreciceModel(Model):
 
     _compute_allowed_kwargs = frozenset({'coupling_input', 'coupling_output'})
 
-    def _compute_solution(self, mu=None, **kwargs):
-        # this should only be called when compute has been called with
-        # solution=False and e.g. output=True
-        return self._compute(solution=True, mu=mu, **kwargs)['solution']
-
-    def _compute(self, solution, mu=None, **kwargs):
-        retval = {}
-
+    def _compute_solution(self, mu=None, coupling_input=None, **kwargs):
         # Assemble the RHS originating from the coupling data
-        rhs = self.coupling_operator.apply_assemble(solution)
+        rhs = self.coupling_operator.apply_assemble(coupling_input)
         # Solve the system and retrieve the solution as an VectorOperator
-        retval['solution'] = VectorOperator(self.operator.apply_inverse(rhs.array, mu=mu))
+        solution = self.operator.apply_inverse(rhs, mu=mu)
         # Advance the coupled system, i.e., exchange data etc
-        self.coupling_operator.apply_advance(solution, mu=mu)
+        self.coupling_operator.apply_advance(coupling_input, mu=mu)
 
-        return retval
+        return solution
 
 
 # instantiate deal.II model and print some information
@@ -104,11 +96,9 @@ dealii.make_grid()
 dealii.setup_system()
 
 # Initialize the python visible vector representation
-solution = VectorOperator(
-    DealIIVectorSpace.make_array([dealii.get_solution()]))
-coupling_rhs = VectorOperator(DealIIVectorSpace.make_array([dealii.get_rhs()]))
-coupling_data = VectorOperator(
-    DealIIVectorSpace.make_array([dealii.get_coupling_data()]))
+solution = DealIIVectorSpace.make_array([dealii.get_solution()])
+coupling_rhs = DealIIVectorSpace.make_array([dealii.get_rhs()])
+coupling_data = DealIIVectorSpace.make_array([dealii.get_coupling_data()])
 
 coupling_operator = CouplingOperator(dealii, solution, coupling_rhs, coupling_data)
 # Create (not yet reduced) model
@@ -120,6 +110,6 @@ counter = 0
 while dealii.is_coupling_ongoing():
     counter += 1
     # Compute the solution of the time step
-    solution = model.compute(solution)['solution']
+    solution = model.solve(coupling_input=solution)
     # and output the results
-    dealii.output_results(solution.as_range_array()._list[0].impl, counter)
+    dealii.output_results(solution._list[0].impl, counter)
