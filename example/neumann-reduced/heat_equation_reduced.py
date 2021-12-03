@@ -1,20 +1,14 @@
-from pymor.basic import *
 from pymor.models.interface import Model
+from pymor.operators.constructions import VectorOperator
 from pymor.operators.interface import Operator
-from pymor.operators.constructions import ZeroOperator
 import sys
 
 from pymor_dealii.pymor.operator import DealIIMatrixOperator
 from pymor_dealii.pymor.vectorarray import DealIIVectorSpace
-from pymor_dealii.pymor.vectorarray import DealIIVector
-from pymor_dealii.pymor.gui import DealIIVisualizer
-from pymor.vectorarrays.interface import VectorArray
 
 
-import pymor_dealii_bindings as pd2
 sys.path.insert(0, "../../lib")
 from dealii_heat_equation import HeatExample
-
 
 
 class CouplingOperator(Operator):
@@ -36,7 +30,8 @@ class CouplingOperator(Operator):
     """
 
     def __init__(self, dealii, solution, coupling_rhs, coupling_input):
-        dealii.initialize_precice(solution.as_range_array()._list[0].impl, coupling_input.as_range_array()._list[0].impl)
+        dealii.initialize_precice(solution.as_range_array()._list[0].impl,
+                                  coupling_input.as_range_array()._list[0].impl)
         self.__auto_init(locals())
 
     def apply_advance(self, U, mu=None):
@@ -48,8 +43,10 @@ class CouplingOperator(Operator):
 
     def apply_assemble(self, U, mu=None):
         assert U.source == self.solution.source
-        dealii.assemble_rhs(self.coupling_input.as_range_array()._list[0].impl,U.as_range_array()._list[0].impl, self.coupling_rhs.as_range_array()._list[0].impl)
+        dealii.assemble_rhs(self.coupling_input.as_range_array()._list[0].impl, U.as_range_array()._list[0].impl,
+                            self.coupling_rhs.as_range_array()._list[0].impl)
         return self.coupling_rhs
+
 
 class StationaryPreciceModel(Model):
     """Generic interface class for coupled simulation via pyMOR and preCICE.
@@ -98,6 +95,7 @@ class StationaryPreciceModel(Model):
 
         return retval
 
+
 # instantiate deal.II model and print some information
 dealii = HeatExample(parameter_file="parameters.prm")
 # Create the grid
@@ -112,7 +110,7 @@ coupling_rhs = VectorOperator(DealIIVectorSpace.make_array([dealii.get_rhs()]))
 coupling_data = VectorOperator(
     DealIIVectorSpace.make_array([dealii.get_coupling_data()]))
 
-coupling_operator=CouplingOperator(dealii, solution, coupling_rhs, coupling_data)
+coupling_operator = CouplingOperator(dealii, solution, coupling_rhs, coupling_data)
 # Create (not yet reduced) model
 model = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()), coupling_operator)
 
@@ -120,7 +118,7 @@ model = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()),
 counter = 0
 # Let preCICE steer the coupled simulation
 while dealii.is_coupling_ongoing():
-    counter+=1
+    counter += 1
     # Compute the solution of the time step
     solution = model.compute(solution)['solution']
     # and output the results
