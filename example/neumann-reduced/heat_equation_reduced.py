@@ -1,9 +1,9 @@
 from pymor.models.interface import Model
-from pymor.operators.constructions import IdentityOperator
+from pymor.operators.constructions import IdentityOperator, ZeroOperator
 import sys
 
 from pymor_dealii.pymor.operator import DealIIMatrixOperator
-from pymor_dealii.pymor.vectorarray import DealIIVectorSpace
+from pymor.vectorarrays.numpy import NumpyVectorSpace
 
 
 sys.path.insert(0, "../../lib")
@@ -20,29 +20,30 @@ class StationaryPreciceModel(Model):
     ----------
     operator
         The |Operator| of the linear problem.
-    coupling_operator
-        Operator handling the coupling contributions and the exchange with preCICE
+    coupling_input_operator
+        Operator mapping the coupling contributions to the rhs.
+    coupling_output_operator
+        Operator mapping the solution to the coupling contributions.
     """
 
     def __init__(self, operator,
-                 coupling_input_operator=None,
-                 coupling_output_operator=None,
-                 output_functional=None, products=None,
-                 error_estimator=None, visualizer=None, name=None):
+                 coupling_input_operator=None, coupling_output_operator=None,
+                 output_functional=None, products=None, error_estimator=None,
+                 visualizer=None, name=None):
 
-        if coupling_input_operator is None:
-            coupling_input_operator = IdentityOperator(operator.range)
-        if coupling_output_operator is None:
-            coupling_output_operator = IdentityOperator(operator.source)
-        assert output_functional is None or output_functional.source == operator.source
+        coupling_input_operator = coupling_input_operator or IdentityOperator(operator.range)
+        coupling_output_operator = coupling_output_operator or IdentityOperator(operator.source)
+        output_functional = output_functional or ZeroOperator(NumpyVectorSpace(0), operator.source)
+        assert coupling_input_operator.range == operator.range
+        assert coupling_output_operator.source == operator.source
+        assert output_functional.source == operator.source
 
         super().__init__(products=products, error_estimator=error_estimator,
                          visualizer=visualizer, name=name)
 
         self.__auto_init(locals())
         self.solution_space = operator.source
-        if output_functional is not None:
-            self.dim_output = output_functional.range.dim
+        self.dim_output = output_functional.range.dim
 
     _compute_allowed_kwargs = frozenset({'coupling_input'})
 
