@@ -13,6 +13,8 @@ sys.path.insert(0, "../../lib")
 from dealii_heat_equation import HeatExample
 
 
+# USE_ROM == False: Solve full-order model and build reduced basis
+# USE_ROM == True:  Solve reduced-order model
 USE_ROM = len(sys.argv) == 2 and int(sys.argv[1])
 
 
@@ -83,14 +85,20 @@ dealii.make_grid()
 # setup the system, i.e., matrices etc.
 dealii.setup_system()
 
-# Create (not yet reduced) model
+# Create full-order model
 fom = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()))
+
+# Setup coupling with PreCICE
 coupling_output = fom.solution_space.zeros()
 coupler = PreciceCoupler(coupling_output)
 
+# Choose model to simulate
 if USE_ROM:
+    # load pre-computed reduced basis
     with open('reduced_basis.dat', 'rb') as f:
         RB = fom.solution_space.from_numpy(load(f))
+
+    # build reduced-order model
     projected_operator                 = project(fom.operator, RB, RB)
     projected_coupling_input_operator  = project(fom.coupling_input_operator, RB, None)
     projected_coupling_output_operator = project(fom.coupling_output_operator, None, RB)
@@ -99,6 +107,7 @@ if USE_ROM:
                                    projected_coupling_output_operator)
 else:
     model = fom
+
 
 # Let preCICE steer the coupled simulation
 solution = model.solution_space.empty()
@@ -110,12 +119,15 @@ while dealii.is_coupling_ongoing():
     coupling_output = data['coupling_output']
 
 
+# Output the solution to VTK
 if USE_ROM:
+    # reconstruct high-dimensional solution field
     solution = RB.lincomb(solution.to_numpy())
 for i, s in enumerate(solution, start=1):
     dealii.output_results(s._list[0].impl, i)
 
 
+# Build reduced basis
 if not USE_ROM:
     RB, svals = pod(solution, rtol=1e-3)
     print(svals)
