@@ -100,24 +100,24 @@ if USE_ROM:
 else:
     model = fom
 
-counter = 0
-solution = model.solution_space.empty()
 # Let preCICE steer the coupled simulation
+solution = model.solution_space.empty()
 while dealii.is_coupling_ongoing():
-    counter += 1
     # Compute the solution of the time step
     coupling_input = coupler.advance(coupling_output)
     data = model.compute(solution=True, coupling_input=coupling_input)
     solution.append(data['solution'])
     coupling_output = data['coupling_output']
-    # and output the results
-    if not USE_ROM:
-        dealii.output_results(solution._list[-1].impl, counter)
 
-print(solution.norm())
+
+if USE_ROM:
+    solution = RB.lincomb(solution.to_numpy())
+for i, s in enumerate(solution, start=1):
+    dealii.output_results(s._list[0].impl, i)
+
 
 if not USE_ROM:
-    RB, svals = pod(solution, rtol=1e-5)
+    RB, svals = pod(solution, rtol=1e-3)
     print(svals)
     with open('reduced_basis.dat', 'wb') as f:
         dump(RB.to_numpy(), f)
