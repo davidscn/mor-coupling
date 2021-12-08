@@ -1,5 +1,6 @@
 from pymor.models.interface import Model
 from pymor.operators.interface import Operator
+from pymor.operators.constructions import IdentityOperator
 import sys
 
 from pymor_dealii.pymor.operator import DealIIMatrixOperator
@@ -61,10 +62,12 @@ class StationaryPreciceModel(Model):
         Operator handling the coupling contributions and the exchange with preCICE
     """
 
-    def __init__(self, operator, coupling_operator,
+    def __init__(self, operator, coupling_operator=None,
                  output_functional=None, products=None,
                  error_estimator=None, visualizer=None, name=None):
 
+        if coupling_operator is None:
+            coupling_operator = IdentityOperator(operator.range)
         assert output_functional is None or output_functional.source == operator.source
 
         super().__init__(products=products, error_estimator=error_estimator,
@@ -79,11 +82,9 @@ class StationaryPreciceModel(Model):
 
     def _compute_solution(self, mu=None, coupling_input=None, **kwargs):
         # Assemble the RHS originating from the coupling data
-        rhs = self.coupling_operator.apply_assemble(coupling_input)
+        rhs = self.coupling_operator.apply(coupling_input)
         # Solve the system and retrieve the solution as an VectorOperator
         solution = self.operator.apply_inverse(rhs, mu=mu)
-        # Advance the coupled system, i.e., exchange data etc
-        self.coupling_operator.apply_advance(coupling_input, mu=mu)
 
         return solution
 
@@ -102,7 +103,7 @@ coupling_data = DealIIVectorSpace.make_array([dealii.get_coupling_data()])
 
 coupling_operator = CouplingOperator(dealii, solution, coupling_rhs, coupling_data)
 # Create (not yet reduced) model
-model = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()), coupling_operator)
+model = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()))
 
 # Result file number counter
 counter = 0
@@ -110,6 +111,9 @@ counter = 0
 while dealii.is_coupling_ongoing():
     counter += 1
     # Compute the solution of the time step
-    solution = model.solve(coupling_input=solution)
+    rhs = coupling_operator.apply_assemble(solution)
+    new_solution = model.solve(coupling_input=rhs)
+    coupling_operator.apply_advance(solution)
+    solution = new_solution
     # and output the results
     dealii.output_results(solution._list[0].impl, counter)
