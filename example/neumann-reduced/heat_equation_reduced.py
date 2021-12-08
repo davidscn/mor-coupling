@@ -1,7 +1,8 @@
-from pickle import dump
+from pickle import dump, load
 import sys
 
 from pymor.algorithms.pod import pod
+from pymor.algorithms.projection import project
 from pymor.models.interface import Model
 from pymor.operators.constructions import IdentityOperator, ZeroOperator
 from pymor.vectorarrays.numpy import NumpyVectorSpace
@@ -88,7 +89,14 @@ coupling_output = fom.solution_space.zeros()
 coupler = PreciceCoupler(coupling_output)
 
 if USE_ROM:
-    raise NotImplementedError
+    with open('reduced_basis.dat', 'rb') as f:
+        RB = fom.solution_space.from_numpy(load(f))
+    projected_operator                 = project(fom.operator, RB, RB)
+    projected_coupling_input_operator  = project(fom.coupling_input_operator, RB, None)
+    projected_coupling_output_operator = project(fom.coupling_output_operator, None, RB)
+    model = StationaryPreciceModel(projected_operator,
+                                   projected_coupling_input_operator,
+                                   projected_coupling_output_operator)
 else:
     model = fom
 
@@ -103,10 +111,13 @@ while dealii.is_coupling_ongoing():
     solution.append(data['solution'])
     coupling_output = data['coupling_output']
     # and output the results
-    dealii.output_results(solution._list[-1].impl, counter)
+    if not USE_ROM:
+        dealii.output_results(solution._list[-1].impl, counter)
+
+print(solution.norm())
 
 if not USE_ROM:
-    basis, svals = pod(solution, rtol=1e-5)
+    RB, svals = pod(solution, rtol=1e-5)
     print(svals)
     with open('reduced_basis.dat', 'wb') as f:
-        dump(basis.to_numpy(), f)
+        dump(RB.to_numpy(), f)
