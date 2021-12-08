@@ -24,12 +24,16 @@ class StationaryPreciceModel(Model):
         Operator handling the coupling contributions and the exchange with preCICE
     """
 
-    def __init__(self, operator, coupling_operator=None,
+    def __init__(self, operator,
+                 coupling_input_operator=None,
+                 coupling_output_operator=None,
                  output_functional=None, products=None,
                  error_estimator=None, visualizer=None, name=None):
 
-        if coupling_operator is None:
-            coupling_operator = IdentityOperator(operator.range)
+        if coupling_input_operator is None:
+            coupling_input_operator = IdentityOperator(operator.range)
+        if coupling_output_operator is None:
+            coupling_output_operator = IdentityOperator(operator.source)
         assert output_functional is None or output_functional.source == operator.source
 
         super().__init__(products=products, error_estimator=error_estimator,
@@ -40,27 +44,28 @@ class StationaryPreciceModel(Model):
         if output_functional is not None:
             self.dim_output = output_functional.range.dim
 
-    _compute_allowed_kwargs = frozenset({'coupling_input', 'coupling_output'})
+    _compute_allowed_kwargs = frozenset({'coupling_input'})
 
     def _compute_solution(self, mu=None, coupling_input=None, **kwargs):
         # Assemble the RHS originating from the coupling data
-        rhs = self.coupling_operator.apply(coupling_input)
+        rhs = self.coupling_input_operator.apply(coupling_input)
         # Solve the system and retrieve the solution as an VectorOperator
         solution = self.operator.apply_inverse(rhs, mu=mu)
+        coupling_output = self.coupling_output_operator.apply(solution, mu=mu)
 
-        return solution
+        return {'solution': solution, 'coupling_output': coupling_output}
 
 
 class PreciceCoupler:
 
-    def __init__(self, initial_solution):
-        self._coupling_data = initial_solution.zeros()._list[0].impl
-        dealii.initialize_precice(initial_solution._list[0].impl, self._coupling_data)
+    def __init__(self, initial_coupling_input):
+        self._coupling_data = initial_coupling_input.zeros()._list[0].impl
+        dealii.initialize_precice(initial_coupling_input._list[0].impl, self._coupling_data)
 
-    def advance(self, solution):
-        rhs = solution.zeros()
-        dealii.assemble_rhs(self._coupling_data, solution._list[0].impl, rhs._list[0].impl)
-        dealii.advance(solution._list[0].impl, self._coupling_data)
+    def advance(self, coupling_input):
+        rhs = coupling_input.zeros()
+        dealii.assemble_rhs(self._coupling_data, coupling_input._list[0].impl, rhs._list[0].impl)
+        dealii.advance(coupling_input._list[0].impl, self._coupling_data)
         return rhs
 
 
@@ -74,15 +79,16 @@ dealii.setup_system()
 # Create (not yet reduced) model
 model = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()))
 
-solution = model.solution_space.zeros()
-coupler = PreciceCoupler(solution)
+coupling_output = model.solution_space.zeros()
+coupler = PreciceCoupler(coupling_output)
 # Result file number counter
 counter = 0
 # Let preCICE steer the coupled simulation
 while dealii.is_coupling_ongoing():
     counter += 1
     # Compute the solution of the time step
-    rhs = coupler.advance(solution)
-    solution = model.solve(coupling_input=rhs)
+    coupling_input = coupler.advance(coupling_output)
+    data = model.compute(solution=True, coupling_input=coupling_input)
+    solution, coupling_output = data['solution'], data['coupling_output']
     # and output the results
     dealii.output_results(solution._list[0].impl, counter)
