@@ -62,20 +62,19 @@ dealii.setup_system()
 solution = DealIIVectorSpace.make_array([dealii.get_solution()])
 coupling_data = DealIIVectorSpace.make_array([dealii.get_coupling_data()])
 
-dealii.initialize_precice(solution._list[0].impl, coupling_data._list[0].impl)
 # Create (not yet reduced) model
 model = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()))
+rhs = model.solution_space.zeros()
 
+dealii.initialize_precice(solution._list[0].impl, coupling_data._list[0].impl)
 # Result file number counter
 counter = 0
 # Let preCICE steer the coupled simulation
 while dealii.is_coupling_ongoing():
     counter += 1
     # Compute the solution of the time step
-    rhs = model.solution_space.zeros()
     dealii.assemble_rhs(coupling_data._list[0].impl, solution._list[0].impl, rhs._list[0].impl)
-    new_solution = model.solve(coupling_input=rhs)
     dealii.advance(solution._list[0].impl, coupling_data._list[0].impl)
-    solution = new_solution
+    solution = model.solve(coupling_input=rhs)
     # and output the results
     dealii.output_results(solution._list[0].impl, counter)
