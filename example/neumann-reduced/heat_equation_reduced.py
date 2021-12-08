@@ -8,9 +8,11 @@ from pymor.vectorarrays.numpy import NumpyVectorSpace
 
 from pymor_dealii.pymor.operator import DealIIMatrixOperator
 
-
 sys.path.insert(0, "../../lib")
 from dealii_heat_equation import HeatExample
+
+
+USE_ROM = len(sys.argv) == 2 and int(sys.argv[1])
 
 
 class StationaryPreciceModel(Model):
@@ -85,7 +87,11 @@ fom = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()))
 coupling_output = fom.solution_space.zeros()
 coupler = PreciceCoupler(coupling_output)
 
-model = fom
+if USE_ROM:
+    raise NotImplementedError
+else:
+    model = fom
+
 counter = 0
 solution = model.solution_space.empty()
 # Let preCICE steer the coupled simulation
@@ -99,7 +105,8 @@ while dealii.is_coupling_ongoing():
     # and output the results
     dealii.output_results(solution._list[-1].impl, counter)
 
-basis, svals = pod(solution, rtol=1e-5)
-print(svals)
-with open('reduced_basis.dat', 'wb') as f:
-    dump(basis.to_numpy(), f)
+if not USE_ROM:
+    basis, svals = pod(solution, rtol=1e-5)
+    print(svals)
+    with open('reduced_basis.dat', 'wb') as f:
+        dump(basis.to_numpy(), f)
