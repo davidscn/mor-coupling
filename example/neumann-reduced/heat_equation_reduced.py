@@ -1,5 +1,4 @@
 from pymor.models.interface import Model
-from pymor.operators.interface import Operator
 from pymor.operators.constructions import IdentityOperator
 import sys
 
@@ -9,43 +8,6 @@ from pymor_dealii.pymor.vectorarray import DealIIVectorSpace
 
 sys.path.insert(0, "../../lib")
 from dealii_heat_equation import HeatExample
-
-
-class CouplingOperator(Operator):
-    """Read and apply data from preCICE
-
-    A class that defines the read direction of preCICE, where new coupling
-    data is read and applied.
-
-    Parameters
-    ----------
-    dealii
-        The dealii implementation within deal.II.
-    solution
-        A VectorOperator describing the solution
-    coupling_rhs
-        The VectorOperator resulting from the coupling_input assembly
-    coupling_input
-        A VectorOperator holding the new coupling data obtained by preCICE
-    """
-
-    def __init__(self, dealii, solution, coupling_rhs, coupling_input):
-        dealii.initialize_precice(solution._list[0].impl,
-                                  coupling_input._list[0].impl)
-        self.__auto_init(locals())
-
-    def apply_advance(self, U, mu=None):
-        assert U.space == self.solution.space
-        dealii.advance(U._list[0].impl, self.coupling_input._list[0].impl)
-
-    def apply(self, U, mu=None):
-        pass
-
-    def apply_assemble(self, U, mu=None):
-        assert U.space == self.solution.space
-        dealii.assemble_rhs(self.coupling_input._list[0].impl, U._list[0].impl,
-                            self.coupling_rhs._list[0].impl)
-        return self.coupling_rhs
 
 
 class StationaryPreciceModel(Model):
@@ -98,10 +60,9 @@ dealii.setup_system()
 
 # Initialize the python visible vector representation
 solution = DealIIVectorSpace.make_array([dealii.get_solution()])
-coupling_rhs = DealIIVectorSpace.make_array([dealii.get_rhs()])
 coupling_data = DealIIVectorSpace.make_array([dealii.get_coupling_data()])
 
-coupling_operator = CouplingOperator(dealii, solution, coupling_rhs, coupling_data)
+dealii.initialize_precice(solution._list[0].impl, coupling_data._list[0].impl)
 # Create (not yet reduced) model
 model = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()))
 
@@ -111,9 +72,10 @@ counter = 0
 while dealii.is_coupling_ongoing():
     counter += 1
     # Compute the solution of the time step
-    rhs = coupling_operator.apply_assemble(solution)
+    rhs = model.solution_space.zeros()
+    dealii.assemble_rhs(coupling_data._list[0].impl, solution._list[0].impl, rhs._list[0].impl)
     new_solution = model.solve(coupling_input=rhs)
-    coupling_operator.apply_advance(solution)
+    dealii.advance(solution._list[0].impl, coupling_data._list[0].impl)
     solution = new_solution
     # and output the results
     dealii.output_results(solution._list[0].impl, counter)
