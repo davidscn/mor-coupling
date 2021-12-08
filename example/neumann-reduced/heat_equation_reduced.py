@@ -51,6 +51,19 @@ class StationaryPreciceModel(Model):
         return solution
 
 
+class PreciceCoupler:
+
+    def __init__(self, initial_solution):
+        self._coupling_data = initial_solution.zeros()._list[0].impl
+        dealii.initialize_precice(initial_solution._list[0].impl, self._coupling_data)
+
+    def advance(self, solution):
+        rhs = solution.zeros()
+        dealii.assemble_rhs(self._coupling_data, solution._list[0].impl, rhs._list[0].impl)
+        dealii.advance(solution._list[0].impl, self._coupling_data)
+        return rhs
+
+
 # instantiate deal.II model and print some information
 dealii = HeatExample(parameter_file="parameters.prm")
 # Create the grid
@@ -58,23 +71,18 @@ dealii.make_grid()
 # setup the system, i.e., matrices etc.
 dealii.setup_system()
 
-# Initialize the python visible vector representation
-solution = DealIIVectorSpace.make_array([dealii.get_solution()])
-coupling_data = DealIIVectorSpace.make_array([dealii.get_coupling_data()])
-
 # Create (not yet reduced) model
 model = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()))
-rhs = model.solution_space.zeros()
 
-dealii.initialize_precice(solution._list[0].impl, coupling_data._list[0].impl)
+solution = model.solution_space.zeros()
+coupler = PreciceCoupler(solution)
 # Result file number counter
 counter = 0
 # Let preCICE steer the coupled simulation
 while dealii.is_coupling_ongoing():
     counter += 1
     # Compute the solution of the time step
-    dealii.assemble_rhs(coupling_data._list[0].impl, solution._list[0].impl, rhs._list[0].impl)
-    dealii.advance(solution._list[0].impl, coupling_data._list[0].impl)
+    rhs = coupler.advance(solution)
     solution = model.solve(coupling_input=rhs)
     # and output the results
     dealii.output_results(solution._list[0].impl, counter)
