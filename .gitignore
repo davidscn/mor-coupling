@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+# VTK
+*.vtk
+*.vtu
+*.pvd
+
+# Log files
+*.log
