@@ -47,16 +47,10 @@ namespace Heat_Transfer
     HeatEquation(const std::string &parameter_file);
 
     void
-    run();
-
-    void
     make_grid();
 
     void
     setup_system();
-
-    void
-    assemble_system();
 
     void
     assemble_rhs(const Vector<double> &heat_flux_,
@@ -121,8 +115,6 @@ namespace Heat_Transfer
     mutable TimerOutput                      timer;
     Adapter::Time                            time;
     Adapter::Adapter<dim, 1, Vector<double>> adapter;
-
-    std::vector<Vector<double> *> state_variables;
 
     const double theta;
     const double alpha;
@@ -284,7 +276,6 @@ namespace Heat_Transfer
     output_results(solution_, 0);
 
     adapter.initialize(dof_handler, solution_, coupling_data_);
-    state_variables = {&solution, &old_solution, &system_rhs};
   }
 
 
@@ -359,32 +350,6 @@ namespace Heat_Transfer
     forcing_terms.reinit(solution.size());
   }
 
-  template <int dim>
-  void
-  HeatEquation<dim>::assemble_system()
-  {
-    // assemble_rhs();
-    Assert(false, ExcNotImplemented());
-    system_matrix.copy_from(mass_matrix);
-    system_matrix.add(theta * time.get_delta_t(), laplace_matrix);
-
-    constraints.condense(system_matrix, system_rhs);
-    {
-      AnalyticSolution<dim> boundary_values_function(alpha, beta);
-      boundary_values_function.set_time(time.current());
-
-      std::map<types::global_dof_index, double> boundary_values;
-      VectorTools::interpolate_boundary_values(dof_handler,
-                                               dirichlet_boundary_id,
-                                               boundary_values_function,
-                                               boundary_values);
-
-      MatrixTools::apply_boundary_values(boundary_values,
-                                         system_matrix,
-                                         solution,
-                                         system_rhs);
-    }
-  }
 
   template <int dim>
   void
@@ -519,50 +484,5 @@ namespace Heat_Transfer
     std::ofstream output(filename);
     data_out.write_vtk(output);
     timer.leave_subsection("output results");
-  }
-
-  template <int dim>
-  void
-  HeatEquation<dim>::run()
-  {
-    make_grid();
-
-    setup_system();
-
-    AnalyticSolution<dim> initial_condition(alpha, beta);
-    initial_condition.set_time(0);
-    VectorTools::interpolate(dof_handler, initial_condition, old_solution);
-    solution  = old_solution;
-    heat_flux = 0;
-    output_results(solution, 0);
-
-    adapter.initialize(dof_handler, solution, heat_flux);
-    state_variables = {&solution, &old_solution, &system_rhs};
-
-    while (adapter.precice.isCouplingOngoing())
-      {
-        adapter.save_current_state_if_required(state_variables, time);
-
-        time.increment();
-
-        std::cout << std::endl
-                  << "Timestep " << time.get_timestep() << " @ " << std::fixed
-                  << time.current() << "s" << std::endl;
-
-        assemble_system();
-        solve_time_step();
-        timer.enter_subsection("Advance adapter");
-        adapter.advance(solution, heat_flux, time.get_delta_t());
-        timer.leave_subsection("Advance adapter");
-
-        adapter.reload_old_state_if_required(state_variables, time);
-
-        if (adapter.precice.isTimeWindowComplete())
-          {
-            old_solution = solution;
-            if (time.get_timestep() % parameters.output_interval == 0)
-              output_results(solution, time.get_timestep());
-          }
-      }
   }
 } // namespace Heat_Transfer
