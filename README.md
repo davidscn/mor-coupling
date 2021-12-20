@@ -1,4 +1,7 @@
 # mor-coupling
+
+[![Building](https://github.com/DavidSCN/mor-coupling/actions/workflows/building.yml/badge.svg)](https://github.com/DavidSCN/mor-coupling/actions/workflows/building.yml)
+
 Coupling MOR codes using pyMOR and preCICE
 
 ## Installation
