@@ -73,7 +73,7 @@ class PreciceCoupler:
 
     def advance(self, coupling_input):
         rhs = coupling_input.zeros()
-        dealii.assemble_rhs(self._coupling_data, coupling_input._list[0].impl, rhs._list[0].impl)
+        dealii.assemble_rhs(self._coupling_data, rhs._list[0].impl)
         dealii.advance(coupling_input._list[0].impl, self._coupling_data)
         return rhs
 
