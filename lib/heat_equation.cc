@@ -53,9 +53,7 @@ namespace Heat_Transfer
     setup_system();
 
     void
-    assemble_rhs(const Vector<double> &heat_flux_,
-                 const Vector<double> &old_solution,
-                 Vector<double> &      rhs_);
+    assemble_rhs(const Vector<double> &heat_flux_, Vector<double> &rhs_);
 
     void
     solve_time_step();
@@ -93,7 +91,7 @@ namespace Heat_Transfer
   private:
     Triangulation<dim>       triangulation;
     const types::boundary_id interface_boundary_id = 0;
-    const types::boundary_id dirichlet_boundary_id = 2;
+    const types::boundary_id dirichlet_boundary_id = 1;
     FE_Q<dim>                fe;
     DoFHandler<dim>          dof_handler;
 
@@ -101,13 +99,11 @@ namespace Heat_Transfer
 
     SparsityPattern      sparsity_pattern;
     SparseMatrix<double> stationary_system_matrix_;
-    SparseMatrix<double> mass_matrix;
     SparseMatrix<double> laplace_matrix;
     SparseMatrix<double> system_matrix;
 
     Vector<double> solution;
     Vector<double> heat_flux;
-    Vector<double> old_solution;
     Vector<double> system_rhs;
     Vector<double> tmp;
     Vector<double> forcing_terms;
@@ -136,7 +132,7 @@ namespace Heat_Transfer
     {
       (void)component;
       AssertIndexRange(component, 1);
-      return 3;
+      return 1.5;
     }
 
   private:
@@ -270,8 +266,7 @@ namespace Heat_Transfer
   {
     AnalyticSolution<dim> initial_condition(alpha, beta);
     initial_condition.set_time(0);
-    VectorTools::interpolate(dof_handler, initial_condition, old_solution);
-    solution_      = old_solution;
+    VectorTools::interpolate(dof_handler, initial_condition, solution_);
     coupling_data_ = 0;
     output_results(solution_, 0);
 
@@ -287,14 +282,6 @@ namespace Heat_Transfer
                                    Point<dim>{1, 0},
                                    Point<dim>{2, 1},
                                    true);
-    for (const auto &cell : triangulation.active_cell_iterators())
-      for (const auto &face : cell->face_iterators())
-        if (face->at_boundary() == true)
-          {
-            // Boundaries for the dirichlet boundary
-            if (face->boundary_id() != 0)
-              face->set_boundary_id(dirichlet_boundary_id);
-          }
 
     const unsigned int global_refinement = 4;
     triangulation.refine_global(global_refinement);
@@ -398,7 +385,6 @@ namespace Heat_Transfer
                                                    endc = dof_handler.end();
 
     std::vector<double> rhs_values(n_q_points);
-    std::vector<double> rhs_values_old(n_q_points);
     std::vector<double> local_flux(n_face_q_points);
 
     for (; cell != endc; ++cell)
@@ -407,17 +393,14 @@ namespace Heat_Transfer
 
         const std::vector<double> &weights = fe_values.get_JxW_values();
         rhs_function.value_list(fe_values.get_quadrature_points(), rhs_values);
-        rhs_function_old.value_list(fe_values.get_quadrature_points(),
-                                    rhs_values_old);
 
         cell_vector = 0;
         for (unsigned int point = 0; point < n_q_points; ++point)
           for (unsigned int i = 0; i < dofs_per_cell; ++i)
             {
-              cell_vector(i) +=
-                ((rhs_values[point] * time.get_delta_t() * theta) +
-                 (rhs_values_old[point] * time.get_delta_t() * (1 - theta))) *
-                fe_values.shape_value(i, point) * weights[point];
+              cell_vector(i) += rhs_values[point] *
+                                fe_values.shape_value(i, point) *
+                                weights[point];
             }
 
         for (const auto &face : cell->face_iterators())
@@ -432,7 +415,6 @@ namespace Heat_Transfer
                 for (unsigned int i = 0; i < dofs_per_cell; ++i)
                   {
                     cell_vector(i) -= fe_f_values.shape_value(i, f_q_point) *
-                                      time.get_delta_t() *
                                       local_flux[f_q_point] *
                                       fe_f_values.JxW(f_q_point);
                   }
