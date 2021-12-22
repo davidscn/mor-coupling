@@ -4,10 +4,10 @@
 
 subsection Time
   # End time
-  set End time              = 1
+  set End time              = 3
 
   # Time step size
-  set Time step size        = 0.1
+  set Time step size        = 1
 
   # Write results every x timesteps
   set Output interval       = 1
