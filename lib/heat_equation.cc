@@ -248,7 +248,14 @@ namespace Heat_Transfer
   HeatEquation<dim>::advance(const Vector<double> &solution_,
                              Vector<double> &      heat_flux_)
   {
+    // We fake the implicit coupling here. The checkpointing is from the solver
+    // perspective a NOP, but we tell preCICE that we stores as checkpoint
+    std::vector<Vector<double> *> dummy(0);
+    adapter.save_current_state_if_required(dummy, time);
+
     adapter.advance(solution_, heat_flux_, time.get_delta_t());
+
+    adapter.reload_old_state_if_required(dummy, time);
   }
 
 
@@ -314,45 +321,60 @@ namespace Heat_Transfer
                                     /*keep_constrained_dofs = */ true);
     sparsity_pattern.copy_from(dsp);
 
-    mass_matrix.reinit(sparsity_pattern);
     laplace_matrix.reinit(sparsity_pattern);
     system_matrix.reinit(sparsity_pattern);
     stationary_system_matrix_.reinit(sparsity_pattern);
 
-    MatrixCreator::create_mass_matrix(dof_handler,
-                                      QGauss<dim>(fe.degree + 1),
-                                      mass_matrix);
     MatrixCreator::create_laplace_matrix(dof_handler,
                                          QGauss<dim>(fe.degree + 1),
                                          laplace_matrix);
 
-    stationary_system_matrix_.copy_from(mass_matrix);
-    stationary_system_matrix_.add(theta * time.get_delta_t(), laplace_matrix);
+    stationary_system_matrix_.copy_from(laplace_matrix);
 
     solution.reinit(dof_handler.n_dofs());
     heat_flux.reinit(dof_handler.n_dofs());
-    old_solution.reinit(dof_handler.n_dofs());
     system_rhs.reinit(dof_handler.n_dofs());
     tmp.reinit(solution.size());
     forcing_terms.reinit(solution.size());
+
+    // Here we apply homogenous Dirichlet Boundary conditions on the right-hand
+    // side of the domain in order to make the system uniquely solvable.
+    // Inhomogenous DBC would be more challenging, because when deal.II applies
+    // the DBC, the RHS vector and the solution vector are modified as well (in
+    // addition to the matrix). However, we want to keep the RHS and the
+    // solution vector independent from the deal.II code here, since they might
+    // be modified in the python code. Strictly speaking, the RHS and solution
+    // vector are modified now already, but only with zeros, which is not
+    // problematic.
+    constraints.condense(system_matrix, system_rhs);
+    {
+      solution   = 0;
+      system_rhs = 0;
+      Functions::ConstantFunction<dim>          boundary_values_function(0);
+      std::map<types::global_dof_index, double> boundary_values;
+      VectorTools::interpolate_boundary_values(dof_handler,
+                                               dirichlet_boundary_id,
+                                               boundary_values_function,
+                                               boundary_values);
+
+      MatrixTools::apply_boundary_values(boundary_values,
+                                         stationary_system_matrix_,
+                                         solution,
+                                         system_rhs);
+    }
   }
 
 
   template <int dim>
   void
   HeatEquation<dim>::assemble_rhs(const Vector<double> &heat_flux_,
-                                  const Vector<double> &old_solution_,
                                   Vector<double> &      rhs_)
   {
-    mass_matrix.vmult(rhs_, old_solution_);
-
     Assert(tmp.size() == solution.size(), ExcInternalError());
-    laplace_matrix.vmult(tmp, old_solution_);
-    rhs_.add(-(1 - theta) * time.get_delta_t(), tmp);
-
-    RightHandSide<dim> rhs_function(alpha, beta), rhs_function_old(alpha, beta);
-    rhs_function.set_time(time.current());
-    rhs_function_old.set_time(time.current() - time.get_delta_t());
+    rhs_ = 0;
+    // Constantly zero at the moment
+    RightHandSide<dim> rhs_function(alpha, beta);
+    rhs_function.set_time(0);
 
     Assert(fe.n_components() == rhs_function.n_components,
            ExcDimensionMismatch(fe.n_components(), rhs_function.n_components));
