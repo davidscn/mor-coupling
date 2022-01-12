@@ -83,6 +83,9 @@ namespace Heat_Transfer
     is_coupling_ongoing() const;
 
     void
+    set_initial_condition(Vector<double> &solution_);
+
+    void
     initialize_precice(Vector<double> &solution_,
                        Vector<double> &coupling_data_);
 
@@ -266,14 +269,22 @@ namespace Heat_Transfer
     return adapter.precice.isCouplingOngoing();
   }
 
+
+  template <int dim>
+  void
+  HeatEquation<dim>::set_initial_condition(Vector<double> &solution_)
+  {
+    AnalyticSolution<dim> initial_condition(alpha, beta);
+    initial_condition.set_time(0);
+    VectorTools::interpolate(dof_handler, initial_condition, solution_);
+  }
+
+
   template <int dim>
   void
   HeatEquation<dim>::initialize_precice(Vector<double> &solution_,
                                         Vector<double> &coupling_data_)
   {
-    AnalyticSolution<dim> initial_condition(alpha, beta);
-    initial_condition.set_time(0);
-    VectorTools::interpolate(dof_handler, initial_condition, solution_);
     coupling_data_ = 0;
     output_results(solution_, 0);
 
