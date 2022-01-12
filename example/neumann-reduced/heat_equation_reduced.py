@@ -5,6 +5,7 @@ from pymor.algorithms.pod import pod
 from pymor.algorithms.projection import project
 from pymor.models.interface import Model
 from pymor.operators.constructions import IdentityOperator, ZeroOperator
+from pymor.operators.interface import Operator
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 
 from pymor_dealii.pymor.operator import DealIIMatrixOperator
@@ -65,17 +66,34 @@ class StationaryPreciceModel(Model):
         return {'solution': solution, 'coupling_output': coupling_output}
 
 
+class CouplingInputOperator(Operator):
+
+    def __init__(self, space):
+        self.source = self.range = self.space = space
+
+    def apply(self, U, mu=None):
+        assert U in self.source
+        if len(U) != 1:
+            raise NotImplementedError
+        rhs = self.range.zeros()
+        dealii.assemble_rhs(U._list[0].impl, rhs._list[0].impl)
+        return rhs
+
+
 class PreciceCoupler:
 
-    def __init__(self, initial_coupling_output):
-        self._coupling_data = initial_coupling_output.zeros()._list[0].impl
-        dealii.initialize_precice(initial_coupling_output._list[0].impl, self._coupling_data)
+    def __init__(self, space):
+        self.coupling_input_space = self.coupling_output_space = space
+
+    def init(self, initial_coupling_output):
+        initial_coupling_input = self.coupling_input_space.zeros()
+        dealii.initialize_precice(initial_coupling_output._list[0].impl, initial_coupling_input._list[0].impl)
+        return initial_coupling_input
 
     def advance(self, coupling_output):
-        rhs = coupling_output.zeros()
-        dealii.assemble_rhs(self._coupling_data, rhs._list[0].impl)
-        dealii.advance(coupling_output._list[0].impl, self._coupling_data)
-        return rhs
+        coupling_input = self.coupling_input_space.zeros()
+        dealii.advance(coupling_output._list[0].impl, coupling_input._list[0].impl)
+        return coupling_input
 
 
 # instantiate deal.II model and print some information
@@ -86,11 +104,15 @@ dealii.make_grid()
 dealii.setup_system()
 
 # Create full-order model
-fom = StationaryPreciceModel(DealIIMatrixOperator(dealii.stationary_matrix()))
+operator = DealIIMatrixOperator(dealii.stationary_matrix())
+coupling_input_operator = CouplingInputOperator(operator.source)
+fom = StationaryPreciceModel(operator, coupling_input_operator=coupling_input_operator)
 
 # Setup coupling with PreCICE
 coupling_output = fom.solution_space.zeros()
-coupler = PreciceCoupler(coupling_output)
+dealii.set_initial_condition(coupling_output._list[0].impl)
+coupler = PreciceCoupler(fom.solution_space)
+coupling_input = coupler.init(coupling_output)
 
 # Choose model to simulate
 if USE_ROM:
@@ -113,8 +135,9 @@ else:
 solution = model.solution_space.empty()
 while dealii.is_coupling_ongoing():
     # Compute the solution of the time step
-    coupling_input = coupler.advance(coupling_output)
+    new_coupling_input = coupler.advance(coupling_output)
     data = model.compute(solution=True, coupling_input=coupling_input)
+    coupling_input = new_coupling_input
     solution.append(data['solution'])
     coupling_output = data['coupling_output']
 

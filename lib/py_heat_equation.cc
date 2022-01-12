@@ -40,6 +40,7 @@ PYBIND11_MODULE(dealii_heat_equation, m)
     .def("get_coupling_data",
          &HeatEquation<2>::get_coupling_data,
          py::return_value_policy::reference_internal)
+    .def("set_initial_condition", &HeatEquation<2>::set_initial_condition)
     .def("initialize_precice", &HeatEquation<2>::initialize_precice)
     .def("output_results", &HeatEquation<2>::output_results)
     .def("assemble_rhs", &HeatEquation<2>::assemble_rhs)
