@@ -67,14 +67,14 @@ class StationaryPreciceModel(Model):
 
 class PreciceCoupler:
 
-    def __init__(self, initial_coupling_input):
-        self._coupling_data = initial_coupling_input.zeros()._list[0].impl
-        dealii.initialize_precice(initial_coupling_input._list[0].impl, self._coupling_data)
+    def __init__(self, initial_coupling_output):
+        self._coupling_data = initial_coupling_output.zeros()._list[0].impl
+        dealii.initialize_precice(initial_coupling_output._list[0].impl, self._coupling_data)
 
-    def advance(self, coupling_input):
-        rhs = coupling_input.zeros()
+    def advance(self, coupling_output):
+        rhs = coupling_output.zeros()
         dealii.assemble_rhs(self._coupling_data, rhs._list[0].impl)
-        dealii.advance(coupling_input._list[0].impl, self._coupling_data)
+        dealii.advance(coupling_output._list[0].impl, self._coupling_data)
         return rhs
 
 
