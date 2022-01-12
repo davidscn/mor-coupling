@@ -4,7 +4,7 @@
 
 subsection Time
   # End time
-  set End time              = 3
+  set End time              = 1
 
   # Time step size
   set Time step size        = 1
