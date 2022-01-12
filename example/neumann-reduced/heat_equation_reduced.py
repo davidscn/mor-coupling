@@ -135,11 +135,10 @@ else:
 solution = model.solution_space.empty()
 while dealii.is_coupling_ongoing():
     # Compute the solution of the time step
-    new_coupling_input = coupler.advance(coupling_output)
     data = model.compute(solution=True, coupling_input=coupling_input)
-    coupling_input = new_coupling_input
     solution.append(data['solution'])
     coupling_output = data['coupling_output']
+    coupling_input = coupler.advance(coupling_output)
 
 
 # Output the solution to VTK
