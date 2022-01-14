@@ -68,6 +68,8 @@ class StationaryPreciceModel(Model):
 
 class CouplingInputOperator(Operator):
 
+    linear = True
+
     def __init__(self, space):
         self.source = self.range = self.space = space
 
