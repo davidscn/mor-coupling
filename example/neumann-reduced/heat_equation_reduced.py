@@ -1,11 +1,14 @@
 from pickle import dump, load
 import sys
+from time import perf_counter
+
+import numpy as np
 
 from pymor.algorithms.pod import pod
 from pymor.algorithms.projection import project
 from pymor.models.interface import Model
 from pymor.operators.constructions import IdentityOperator, ZeroOperator
-from pymor.operators.interface import Operator
+from pymor.operators.list import ListVectorArrayOperatorBase
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 
 from pymor_dealii.pymor.operator import DealIIMatrixOperator
@@ -66,20 +69,20 @@ class StationaryPreciceModel(Model):
         return {'solution': solution, 'coupling_output': coupling_output}
 
 
-class CouplingInputOperator(Operator):
+class CouplingInputOperator(ListVectorArrayOperatorBase):
 
     linear = True
 
     def __init__(self, space):
         self.source = self.range = self.space = space
 
-    def apply(self, U, mu=None):
-        assert U in self.source
-        if len(U) != 1:
-            raise NotImplementedError
-        rhs = self.range.zeros()
-        dealii.assemble_rhs(U._list[0].impl, rhs._list[0].impl)
+    def _apply_one_vector(self, u, mu=None, prepare_data=None):
+        rhs = self.range.zero_vector()
+        dealii.assemble_rhs(u.impl, rhs.impl)
         return rhs
+
+    # Operator is self-adjoint ..
+    _apply_adjoint_one_vector = _apply_one_vector
 
 
 class PreciceCoupler:
@@ -134,6 +137,7 @@ else:
 
 
 # Let preCICE steer the coupled simulation
+tic = perf_counter()
 solution = model.solution_space.empty()
 while dealii.is_coupling_ongoing():
     # Compute the solution of the time step
@@ -141,6 +145,7 @@ while dealii.is_coupling_ongoing():
     solution.append(data['solution'])
     coupling_output = data['coupling_output']
     coupling_input = coupler.advance(coupling_output)
+toc = perf_counter()
 
 
 # Output the solution to VTK
@@ -157,3 +162,5 @@ if not USE_ROM:
     print(svals)
     with open('reduced_basis.dat', 'wb') as f:
         dump(RB.to_numpy(), f)
+
+print(f'Time required for solution: {toc-tic}s')
