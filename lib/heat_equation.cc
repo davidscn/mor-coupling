@@ -62,9 +62,6 @@ namespace Heat_Transfer
     stationary_system_matrix() const;
 
     void
-    print_configuration() const;
-
-    void
     advance(const Vector<double> &solution_, Vector<double> &heat_flux_);
 
     bool
@@ -80,6 +77,9 @@ namespace Heat_Transfer
     const Parameters::AllParameters parameters;
 
   private:
+    void
+    print_configuration() const;
+
     Triangulation<dim>       triangulation;
     const types::boundary_id interface_boundary_id = 0;
     const types::boundary_id dirichlet_boundary_id = 1;
@@ -90,11 +90,8 @@ namespace Heat_Transfer
 
     SparsityPattern      sparsity_pattern;
     SparseMatrix<double> stationary_system_matrix_;
-    SparseMatrix<double> laplace_matrix;
-    SparseMatrix<double> system_matrix;
 
     Vector<double> solution;
-    Vector<double> heat_flux;
     Vector<double> system_rhs;
 
     mutable TimerOutput                      timer;
@@ -214,6 +211,7 @@ namespace Heat_Transfer
   HeatEquation<dim>::advance(const Vector<double> &solution_,
                              Vector<double> &      heat_flux_)
   {
+    timer.enter_subsection("advance preCICE");
     // We fake the implicit coupling here. The checkpointing is from the solver
     // perspective a NOP, but we tell preCICE that we stores as checkpoint
     std::vector<Vector<double> *> dummy(0);
@@ -222,6 +220,7 @@ namespace Heat_Transfer
     adapter.advance(solution_, heat_flux_, time.get_delta_t());
 
     adapter.reload_old_state_if_required(dummy, time);
+    timer.leave_subsection("advance preCICE");
   }
 
 
@@ -248,10 +247,12 @@ namespace Heat_Transfer
   HeatEquation<dim>::initialize_precice(Vector<double> &solution_,
                                         Vector<double> &coupling_data_)
   {
+    timer.enter_subsection("initialize preCICE");
     coupling_data_ = 0;
     output_results(solution_, 0);
 
     adapter.initialize(dof_handler, solution_, coupling_data_);
+    timer.leave_subsection("initialize preCICE");
   }
 
 
@@ -294,19 +295,13 @@ namespace Heat_Transfer
                                     constraints,
                                     /*keep_constrained_dofs = */ true);
     sparsity_pattern.copy_from(dsp);
-
-    laplace_matrix.reinit(sparsity_pattern);
-    system_matrix.reinit(sparsity_pattern);
     stationary_system_matrix_.reinit(sparsity_pattern);
 
     MatrixCreator::create_laplace_matrix(dof_handler,
                                          QGauss<dim>(fe.degree + 1),
-                                         laplace_matrix);
-
-    stationary_system_matrix_.copy_from(laplace_matrix);
+                                         stationary_system_matrix_);
 
     solution.reinit(dof_handler.n_dofs());
-    heat_flux.reinit(dof_handler.n_dofs());
     system_rhs.reinit(dof_handler.n_dofs());
 
     // Here we apply homogenous Dirichlet Boundary conditions on the right-hand
@@ -318,7 +313,8 @@ namespace Heat_Transfer
     // be modified in the python code. Strictly speaking, the RHS and solution
     // vector are modified now already, but only with zeros, which is not
     // problematic.
-    constraints.condense(system_matrix, system_rhs);
+
+    constraints.condense(stationary_system_matrix_, system_rhs);
     {
       solution   = 0;
       system_rhs = 0;
@@ -342,6 +338,7 @@ namespace Heat_Transfer
   HeatEquation<dim>::assemble_rhs(const Vector<double> &heat_flux_,
                                   Vector<double> &      rhs_)
   {
+    timer.enter_subsection("assemble rhs");
     rhs_ = 0;
     // Constantly zero at the moment
     RightHandSide<dim> rhs_function(alpha, beta);
@@ -413,6 +410,7 @@ namespace Heat_Transfer
         cell->get_dof_indices(dofs);
         constraints.distribute_local_to_global(cell_vector, dofs, rhs_);
       } // end cell loop
+    timer.leave_subsection("assemble rhs");
   }
 
 
