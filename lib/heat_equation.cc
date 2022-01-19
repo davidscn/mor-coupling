@@ -56,22 +56,10 @@ namespace Heat_Transfer
     assemble_rhs(const Vector<double> &heat_flux_, Vector<double> &rhs_);
 
     void
-    solve_time_step();
-
-    void
     output_results(const Vector<double> &solution_, const int file_index) const;
 
     const SparseMatrix<double> &
     stationary_system_matrix() const;
-
-    const Vector<double> &
-    get_rhs() const;
-
-    const Vector<double> &
-    get_solution() const;
-
-    const Vector<double> &
-    get_coupling_data() const;
 
     void
     print_configuration() const;
@@ -108,8 +96,6 @@ namespace Heat_Transfer
     Vector<double> solution;
     Vector<double> heat_flux;
     Vector<double> system_rhs;
-    Vector<double> tmp;
-    Vector<double> forcing_terms;
 
     mutable TimerOutput                      timer;
     Adapter::Time                            time;
@@ -187,29 +173,6 @@ namespace Heat_Transfer
   HeatEquation<dim>::stationary_system_matrix() const
   {
     return stationary_system_matrix_;
-  }
-
-  template <int dim>
-  const Vector<double> &
-  HeatEquation<dim>::get_rhs() const
-  {
-    return system_rhs;
-  }
-
-
-  template <int dim>
-  const Vector<double> &
-  HeatEquation<dim>::get_solution() const
-  {
-    return solution;
-  }
-
-
-  template <int dim>
-  const Vector<double> &
-  HeatEquation<dim>::get_coupling_data() const
-  {
-    return heat_flux;
   }
 
 
@@ -345,8 +308,6 @@ namespace Heat_Transfer
     solution.reinit(dof_handler.n_dofs());
     heat_flux.reinit(dof_handler.n_dofs());
     system_rhs.reinit(dof_handler.n_dofs());
-    tmp.reinit(solution.size());
-    forcing_terms.reinit(solution.size());
 
     // Here we apply homogenous Dirichlet Boundary conditions on the right-hand
     // side of the domain in order to make the system uniquely solvable.
@@ -381,7 +342,6 @@ namespace Heat_Transfer
   HeatEquation<dim>::assemble_rhs(const Vector<double> &heat_flux_,
                                   Vector<double> &      rhs_)
   {
-    Assert(tmp.size() == solution.size(), ExcInternalError());
     rhs_ = 0;
     // Constantly zero at the moment
     RightHandSide<dim> rhs_function(alpha, beta);
@@ -389,8 +349,6 @@ namespace Heat_Transfer
 
     Assert(fe.n_components() == rhs_function.n_components,
            ExcDimensionMismatch(fe.n_components(), rhs_function.n_components));
-    Assert(forcing_terms.size() == dof_handler.n_dofs(),
-           ExcDimensionMismatch(forcing_terms.size(), dof_handler.n_dofs()));
 
     UpdateFlags update_flags =
       UpdateFlags(update_values | update_quadrature_points | update_JxW_values);
@@ -457,26 +415,7 @@ namespace Heat_Transfer
       } // end cell loop
   }
 
-  template <int dim>
-  void
-  HeatEquation<dim>::solve_time_step()
-  {
-    timer.enter_subsection("solve system");
 
-    SolverControl            solver_control(1000, 1e-8 * system_rhs.l2_norm());
-    SolverCG<Vector<double>> cg(solver_control);
-
-    PreconditionSSOR<SparseMatrix<double>> preconditioner;
-    preconditioner.initialize(system_matrix, 1.0);
-
-    cg.solve(system_matrix, solution, system_rhs, preconditioner);
-
-    constraints.distribute(solution);
-
-    std::cout << "     " << solver_control.last_step() << " CG iterations."
-              << std::endl;
-    timer.leave_subsection("solve system");
-  }
 
   template <int dim>
   void

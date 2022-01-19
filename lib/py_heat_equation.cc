@@ -27,18 +27,8 @@ PYBIND11_MODULE(dealii_heat_equation, m)
     .def("make_grid", &HeatEquation<2>::make_grid)
     .def("setup_system", &HeatEquation<2>::setup_system)
     .def("advance", &HeatEquation<2>::advance)
-    .def("solve_time_step", &HeatEquation<2>::solve_time_step)
     .def("stationary_matrix",
          &HeatEquation<2>::stationary_system_matrix,
-         py::return_value_policy::reference_internal)
-    .def("get_rhs",
-         &HeatEquation<2>::get_rhs,
-         py::return_value_policy::reference_internal)
-    .def("get_solution",
-         &HeatEquation<2>::get_solution,
-         py::return_value_policy::reference_internal)
-    .def("get_coupling_data",
-         &HeatEquation<2>::get_coupling_data,
          py::return_value_policy::reference_internal)
     .def("set_initial_condition", &HeatEquation<2>::set_initial_condition)
     .def("initialize_precice", &HeatEquation<2>::initialize_precice)
