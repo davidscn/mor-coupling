@@ -50,7 +50,10 @@ namespace Heat_Transfer
     make_grid();
 
     void
-    setup_system(double coefficient_value);
+    setup_system(double coefficient1,
+                 double coefficient2,
+                 double threshold_x,
+                 double threshold_y);
 
     void
     assemble_rhs(const Vector<double> &heat_flux_, Vector<double> &rhs_);
@@ -149,6 +152,44 @@ namespace Heat_Transfer
     const double alpha;
     const double beta;
   };
+
+  // Returns a spatially varying coefficient.
+  // If the domain is below the threshold of x and y, coefficient 1 is returned,
+  // If the domain is above the threshold of x and y, coefficient 2 is returned.
+  template <int dim, typename value_type = double>
+  class Coefficient : public Function<dim, value_type>
+  {
+  public:
+    Coefficient(double coefficient1,
+                double coefficient2,
+                double threshold_x,
+                double threshold_y)
+      : Function<dim>()
+      , coefficient1(coefficient1)
+      , coefficient2(coefficient2)
+      , threshold_x(threshold_x)
+      , threshold_y(threshold_y)
+    {}
+
+    virtual double
+    value(const Point<dim> &p, const unsigned int component = 0) const override
+    {
+      (void)component;
+      Assert(component == 0, ExcIndexRange(component, 0, 1));
+
+      if (p[0] < threshold_x && p[1] < threshold_y)
+        return coefficient1;
+      else
+        return coefficient2;
+    }
+
+  private:
+    const double coefficient1;
+    const double coefficient2;
+    const double threshold_x;
+    const double threshold_y;
+  };
+
 
   template <int dim>
   HeatEquation<dim>::HeatEquation(const std::string &parameter_file)
@@ -273,7 +314,10 @@ namespace Heat_Transfer
 
   template <int dim>
   void
-  HeatEquation<dim>::setup_system(double coefficient_value)
+  HeatEquation<dim>::setup_system(double coefficient1,
+                                  double coefficient2,
+                                  double threshold_x,
+                                  double threshold_y)
   {
     dof_handler.distribute_dofs(fe);
 
@@ -297,7 +341,10 @@ namespace Heat_Transfer
     sparsity_pattern.copy_from(dsp);
     stationary_system_matrix_.reinit(sparsity_pattern);
 
-    const Functions::ConstantFunction<dim> coefficient(coefficient_value);
+    const Coefficient<dim> coefficient(coefficient1,
+                                       coefficient2,
+                                       threshold_x,
+                                       threshold_y);
     MatrixCreator::create_laplace_matrix(dof_handler,
                                          QGauss<dim>(fe.degree + 1),
                                          stationary_system_matrix_,
