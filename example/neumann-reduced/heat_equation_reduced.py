@@ -106,10 +106,10 @@ dealii = HeatExample(parameter_file="parameters.prm")
 # Create the grid
 dealii.make_grid()
 # setup the system, i.e., matrices etc.
-dealii.setup_system(1, 2, 1.5, 0.5)
+matrix = dealii.setup_system(1, 2, 1.5, 0.5)
 
 # Create full-order model
-operator = DealIIMatrixOperator(dealii.stationary_matrix())
+operator = DealIIMatrixOperator(matrix)
 coupling_input_operator = CouplingInputOperator(operator.source)
 fom = StationaryPreciceModel(operator, coupling_input_operator=coupling_input_operator)
 
