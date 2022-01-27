@@ -25,7 +25,7 @@ PYBIND11_MODULE(dealii_heat_equation, m)
     .def(py::init<const std::string &>(),
          py::arg("parameter_file") = std::string("parameters"))
     .def("make_grid", &HeatEquation<2>::make_grid)
-    .def("setup_system", &HeatEquation<2>::setup_system)
+    .def("setup_system", &HeatEquation<2>::setup_system, py::arg("coefficient"))
     .def("advance", &HeatEquation<2>::advance)
     .def("stationary_matrix",
          &HeatEquation<2>::stationary_system_matrix,

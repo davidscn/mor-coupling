@@ -50,7 +50,7 @@ namespace Heat_Transfer
     make_grid();
 
     void
-    setup_system();
+    setup_system(double coefficient_value);
 
     void
     assemble_rhs(const Vector<double> &heat_flux_, Vector<double> &rhs_);
@@ -273,7 +273,7 @@ namespace Heat_Transfer
 
   template <int dim>
   void
-  HeatEquation<dim>::setup_system()
+  HeatEquation<dim>::setup_system(double coefficient_value)
   {
     dof_handler.distribute_dofs(fe);
 
@@ -297,9 +297,11 @@ namespace Heat_Transfer
     sparsity_pattern.copy_from(dsp);
     stationary_system_matrix_.reinit(sparsity_pattern);
 
+    const Functions::ConstantFunction<dim> coefficient(coefficient_value);
     MatrixCreator::create_laplace_matrix(dof_handler,
                                          QGauss<dim>(fe.degree + 1),
-                                         stationary_system_matrix_);
+                                         stationary_system_matrix_,
+                                         &coefficient);
 
     solution.reinit(dof_handler.n_dofs());
     system_rhs.reinit(dof_handler.n_dofs());
