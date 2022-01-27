@@ -49,7 +49,7 @@ namespace Heat_Transfer
     void
     make_grid();
 
-    void
+    SparseMatrix<double>
     setup_system(double coefficient1,
                  double coefficient2,
                  double threshold_x,
@@ -313,7 +313,7 @@ namespace Heat_Transfer
   }
 
   template <int dim>
-  void
+  SparseMatrix<double>
   HeatEquation<dim>::setup_system(double coefficient1,
                                   double coefficient2,
                                   double threshold_x,
@@ -379,6 +379,10 @@ namespace Heat_Transfer
                                          solution,
                                          system_rhs);
     }
+    SparseMatrix<double> matrix;
+    matrix.reinit(sparsity_pattern);
+    matrix.copy_from(stationary_system_matrix_);
+    return matrix;
   }
 
 

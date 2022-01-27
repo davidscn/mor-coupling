@@ -30,7 +30,8 @@ PYBIND11_MODULE(dealii_heat_equation, m)
          py::arg("coefficient1"),
          py::arg("coefficient2"),
          py::arg("threshold_x"),
-         py::arg("threshold_y"))
+         py::arg("threshold_y"),
+         py::return_value_policy::move)
     .def("advance", &HeatEquation<2>::advance)
     .def("stationary_matrix",
          &HeatEquation<2>::stationary_system_matrix,
