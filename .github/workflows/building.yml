@@ -27,8 +27,8 @@ jobs:
   pymor_image:
     strategy:
       matrix:
-        container: ["zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.9:189cd1e9388cb12a6f3e98205b11166714f56f9a",
-          "zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.7:189cd1e9388cb12a6f3e98205b11166714f56f9a"]
+        container: ["zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.9:ef38304121ce0de0cf414036094b19c443ad16e2",
+          "zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.7:ef38304121ce0de0cf414036094b19c443ad16e2"]
     runs-on: ubuntu-latest
 
     steps:
