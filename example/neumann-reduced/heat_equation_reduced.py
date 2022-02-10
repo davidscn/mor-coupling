@@ -144,9 +144,12 @@ else:
 # Let preCICE steer the coupled simulation
 tic = perf_counter()
 solution = model.solution_space.empty()
+# assemble the system operator for given mu to avoid re-assembly in each iteration
+assembled_model = model.with_(operator=model.operator.assemble(model.parameters.parse([1, 2])))   # fails to converge for mu=[0.1, 2]
 while dealii.is_coupling_ongoing():
     # Compute the solution of the time step
-    data = model.compute(solution=True, coupling_input=coupling_input, mu=[1, 2])   # fails to converge for mu=[0.1, 2]
+    print(assembled_model.operator)
+    data = assembled_model.compute(solution=True, coupling_input=coupling_input)
     solution.append(data['solution'])
     coupling_output = data['coupling_output']
     coupling_input = coupler.advance(coupling_output)
