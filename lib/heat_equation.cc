@@ -320,6 +320,10 @@ namespace Heat_Transfer
                                     constraints,
                                     /*keep_constrained_dofs = */ true);
     sparsity_pattern.copy_from(dsp);
+
+    // We also initialize the vectors used for the matrix constraints
+    solution.reinit(dof_handler.n_dofs());
+    system_rhs.reinit(dof_handler.n_dofs());
   }
 
 
@@ -342,9 +346,6 @@ namespace Heat_Transfer
                                          stationary_system_matrix,
                                          &coefficient);
 
-    solution.reinit(dof_handler.n_dofs());
-    system_rhs.reinit(dof_handler.n_dofs());
-
     // Here we apply homogenous Dirichlet Boundary conditions on the right-hand
     // side of the domain in order to make the system uniquely solvable.
     // Inhomogenous DBC would be more challenging, because when deal.II applies
@@ -355,10 +356,10 @@ namespace Heat_Transfer
     // vector are modified now already, but only with zeros, which is not
     // problematic.
 
+    solution   = 0;
+    system_rhs = 0;
     constraints.condense(stationary_system_matrix, system_rhs);
     {
-      solution   = 0;
-      system_rhs = 0;
       Functions::ConstantFunction<dim>          boundary_values_function(0);
       std::map<types::global_dof_index, double> boundary_values;
       VectorTools::interpolate_boundary_values(dof_handler,
