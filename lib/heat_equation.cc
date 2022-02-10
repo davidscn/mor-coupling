@@ -47,22 +47,19 @@ namespace Heat_Transfer
     HeatEquation(const std::string &parameter_file);
 
     void
-    make_grid();
+    make_grid_and_sparsity_pattern();
 
     SparseMatrix<double>
-    setup_system(double coefficient1,
-                 double coefficient2,
-                 double threshold_x,
-                 double threshold_y);
+    create_system_matrix(double coefficient1,
+                         double coefficient2,
+                         double threshold_x,
+                         double threshold_y);
 
     void
     assemble_rhs(const Vector<double> &heat_flux_, Vector<double> &rhs_);
 
     void
     output_results(const Vector<double> &solution_, const int file_index) const;
-
-    const SparseMatrix<double> &
-    stationary_system_matrix() const;
 
     void
     advance(const Vector<double> &solution_, Vector<double> &heat_flux_);
@@ -91,8 +88,7 @@ namespace Heat_Transfer
 
     AffineConstraints<double> constraints;
 
-    SparsityPattern      sparsity_pattern;
-    SparseMatrix<double> stationary_system_matrix_;
+    SparsityPattern sparsity_pattern;
 
     Vector<double> solution;
     Vector<double> system_rhs;
@@ -206,13 +202,6 @@ namespace Heat_Transfer
     print_configuration();
   }
 
-  template <int dim>
-  const SparseMatrix<double> &
-  HeatEquation<dim>::stationary_system_matrix() const
-  {
-    return stationary_system_matrix_;
-  }
-
 
   template <int dim>
   void
@@ -299,7 +288,7 @@ namespace Heat_Transfer
 
   template <int dim>
   void
-  HeatEquation<dim>::make_grid()
+  HeatEquation<dim>::make_grid_and_sparsity_pattern()
   {
     GridGenerator::hyper_rectangle(triangulation,
                                    Point<dim>{1, 0},
@@ -310,15 +299,7 @@ namespace Heat_Transfer
     triangulation.refine_global(global_refinement);
     AssertThrow(interface_boundary_id == adapter.deal_boundary_interface_id,
                 ExcMessage("Wrong interface ID in the Adapter specified"));
-  }
 
-  template <int dim>
-  SparseMatrix<double>
-  HeatEquation<dim>::setup_system(double coefficient1,
-                                  double coefficient2,
-                                  double threshold_x,
-                                  double threshold_y)
-  {
     dof_handler.distribute_dofs(fe);
 
     std::cout << std::endl
@@ -339,7 +320,18 @@ namespace Heat_Transfer
                                     constraints,
                                     /*keep_constrained_dofs = */ true);
     sparsity_pattern.copy_from(dsp);
-    stationary_system_matrix_.reinit(sparsity_pattern);
+  }
+
+
+
+  template <int dim>
+  SparseMatrix<double>
+  HeatEquation<dim>::create_system_matrix(double coefficient1,
+                                          double coefficient2,
+                                          double threshold_x,
+                                          double threshold_y)
+  {
+    SparseMatrix<double> stationary_system_matrix(sparsity_pattern);
 
     const Coefficient<dim> coefficient(coefficient1,
                                        coefficient2,
@@ -347,7 +339,7 @@ namespace Heat_Transfer
                                        threshold_y);
     MatrixCreator::create_laplace_matrix(dof_handler,
                                          QGauss<dim>(fe.degree + 1),
-                                         stationary_system_matrix_,
+                                         stationary_system_matrix,
                                          &coefficient);
 
     solution.reinit(dof_handler.n_dofs());
@@ -363,7 +355,7 @@ namespace Heat_Transfer
     // vector are modified now already, but only with zeros, which is not
     // problematic.
 
-    constraints.condense(stationary_system_matrix_, system_rhs);
+    constraints.condense(stationary_system_matrix, system_rhs);
     {
       solution   = 0;
       system_rhs = 0;
@@ -375,14 +367,11 @@ namespace Heat_Transfer
                                                boundary_values);
 
       MatrixTools::apply_boundary_values(boundary_values,
-                                         stationary_system_matrix_,
+                                         stationary_system_matrix,
                                          solution,
                                          system_rhs);
     }
-    SparseMatrix<double> matrix;
-    matrix.reinit(sparsity_pattern);
-    matrix.copy_from(stationary_system_matrix_);
-    return matrix;
+    return stationary_system_matrix;
   }
 
 
