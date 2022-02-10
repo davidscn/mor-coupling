@@ -7,8 +7,9 @@ import numpy as np
 from pymor.algorithms.pod import pod
 from pymor.algorithms.projection import project
 from pymor.models.interface import Model
-from pymor.operators.constructions import IdentityOperator, ZeroOperator
+from pymor.operators.constructions import IdentityOperator, ZeroOperator, LincombOperator
 from pymor.operators.list import ListVectorArrayOperatorBase
+from pymor.parameters.functionals import ProjectionParameterFunctional
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 
 from pymor_dealii.pymor.operator import DealIIMatrixOperator
@@ -106,10 +107,14 @@ dealii = HeatExample(parameter_file="parameters.prm")
 # Create the grid
 dealii.make_grid_and_sparsity_pattern()
 # setup the system, i.e., matrices etc.
-matrix = dealii.create_system_matrix(1, 2, 1.5, 0.5)
+THRESHOLD_X, THRESHOLD_Y = 1.5, 0.5
+matrices = [dealii.create_system_matrix(1, 0, THRESHOLD_X, THRESHOLD_Y),
+            dealii.create_system_matrix(0, 1, THRESHOLD_X, THRESHOLD_Y)]
 
 # Create full-order model
-operator = DealIIMatrixOperator(matrix)
+operators = [DealIIMatrixOperator(matrix) for matrix in matrices]
+coefficients = [ProjectionParameterFunctional('coefficient', 2, i) for i in range(2)]
+operator = LincombOperator(operators, coefficients)
 coupling_input_operator = CouplingInputOperator(operator.source)
 fom = StationaryPreciceModel(operator, coupling_input_operator=coupling_input_operator)
 
@@ -141,7 +146,7 @@ tic = perf_counter()
 solution = model.solution_space.empty()
 while dealii.is_coupling_ongoing():
     # Compute the solution of the time step
-    data = model.compute(solution=True, coupling_input=coupling_input)
+    data = model.compute(solution=True, coupling_input=coupling_input, mu=[1, 2])   # fails to converge for mu=[0.1, 2]
     solution.append(data['solution'])
     coupling_output = data['coupling_output']
     coupling_input = coupler.advance(coupling_output)
