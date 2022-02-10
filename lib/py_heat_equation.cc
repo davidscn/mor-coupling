@@ -24,18 +24,16 @@ PYBIND11_MODULE(dealii_heat_equation, m)
   py::class_<HeatEquation<2>>(m, "HeatExample")
     .def(py::init<const std::string &>(),
          py::arg("parameter_file") = std::string("parameters"))
-    .def("make_grid", &HeatEquation<2>::make_grid)
-    .def("setup_system",
-         &HeatEquation<2>::setup_system,
+    .def("make_grid_and_sparsity_pattern",
+         &HeatEquation<2>::make_grid_and_sparsity_pattern)
+    .def("create_system_matrix",
+         &HeatEquation<2>::create_system_matrix,
          py::arg("coefficient1"),
          py::arg("coefficient2"),
          py::arg("threshold_x"),
          py::arg("threshold_y"),
          py::return_value_policy::move)
     .def("advance", &HeatEquation<2>::advance)
-    .def("stationary_matrix",
-         &HeatEquation<2>::stationary_system_matrix,
-         py::return_value_policy::reference_internal)
     .def("set_initial_condition", &HeatEquation<2>::set_initial_condition)
     .def("initialize_precice", &HeatEquation<2>::initialize_precice)
     .def("output_results", &HeatEquation<2>::output_results)

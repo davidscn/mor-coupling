@@ -104,9 +104,9 @@ class PreciceCoupler:
 # instantiate deal.II model and print some information
 dealii = HeatExample(parameter_file="parameters.prm")
 # Create the grid
-dealii.make_grid()
+dealii.make_grid_and_sparsity_pattern()
 # setup the system, i.e., matrices etc.
-matrix = dealii.setup_system(1, 2, 1.5, 0.5)
+matrix = dealii.create_system_matrix(1, 2, 1.5, 0.5)
 
 # Create full-order model
 operator = DealIIMatrixOperator(matrix)
