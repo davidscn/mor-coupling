@@ -7,6 +7,7 @@ on:
 
 jobs:
   deal_image:
+    timeout-minutes: 15
     strategy:
       matrix:
         container: ["dealii/dealii:v9.2.0-focal", "dealii/dealii:v9.3.0-focal"]
@@ -25,6 +26,7 @@ jobs:
          # need to set uid to allow container user to write to the mount
          docker run -t --user 0 -v $PWD:/src ${{ matrix.container }} /src/mor-coupling/.github/workflows/run_deal.ii.bash;
   pymor_image:
+    timeout-minutes: 15
     strategy:
       matrix:
         container: ["zivgitlab.wwu.io/pymor/docker/pymor/testing_py3.9:ef38304121ce0de0cf414036094b19c443ad16e2",
