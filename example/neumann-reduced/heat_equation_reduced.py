@@ -148,7 +148,6 @@ solution = model.solution_space.empty()
 assembled_model = model.with_(operator=model.operator.assemble(model.parameters.parse([1, 2])))   # fails to converge for mu=[0.1, 2]
 while dealii.is_coupling_ongoing():
     # Compute the solution of the time step
-    print(assembled_model.operator)
     data = assembled_model.compute(solution=True, coupling_input=coupling_input)
     solution.append(data['solution'])
     coupling_output = data['coupling_output']
