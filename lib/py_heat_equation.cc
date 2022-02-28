@@ -36,6 +36,7 @@ PYBIND11_MODULE(dealii_heat_equation, m)
     .def("advance", &HeatEquation<2>::advance)
     .def("set_initial_condition", &HeatEquation<2>::set_initial_condition)
     .def("initialize_precice", &HeatEquation<2>::initialize_precice)
+    .def("reset_precice", &HeatEquation<2>::reset_precice)
     .def("output_results", &HeatEquation<2>::output_results)
     .def("assemble_rhs", &HeatEquation<2>::assemble_rhs)
     .def("is_coupling_ongoing", &HeatEquation<2>::is_coupling_ongoing);

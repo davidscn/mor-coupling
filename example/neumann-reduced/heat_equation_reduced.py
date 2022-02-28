@@ -154,6 +154,10 @@ while dealii.is_coupling_ongoing():
     coupling_input = coupler.advance(coupling_output)
 toc = perf_counter()
 
+# Reset preCICE and rerun the simulation
+# dealii.reset_precice()
+# coupler = PreciceCoupler(fom.solution_space)
+# coupling_input = coupler.init(coupling_output)
 
 # Output the solution to VTK
 if USE_ROM:

@@ -68,6 +68,9 @@ namespace Heat_Transfer
     is_coupling_ongoing() const;
 
     void
+    reset_precice();
+
+    void
     set_initial_condition(Vector<double> &solution_);
 
     void
@@ -93,9 +96,9 @@ namespace Heat_Transfer
     Vector<double> solution;
     Vector<double> system_rhs;
 
-    mutable TimerOutput                      timer;
-    Adapter::Time                            time;
-    Adapter::Adapter<dim, 1, Vector<double>> adapter;
+    mutable TimerOutput                                       timer;
+    Adapter::Time                                             time;
+    std::unique_ptr<Adapter::Adapter<dim, 1, Vector<double>>> adapter;
 
     const double theta;
     const double alpha;
@@ -194,7 +197,9 @@ namespace Heat_Transfer
     , dof_handler(triangulation)
     , timer(std::cout, TimerOutput::summary, TimerOutput::wall_times)
     , time(parameters.end_time, parameters.delta_t)
-    , adapter(parameters, interface_boundary_id)
+    , adapter(std::make_unique<Adapter::Adapter<dim, 1, Vector<double>>>(
+        parameters,
+        interface_boundary_id))
     , theta(1)
     , alpha(3)
     , beta(0)
@@ -245,11 +250,11 @@ namespace Heat_Transfer
     // We fake the implicit coupling here. The checkpointing is from the solver
     // perspective a NOP, but we tell preCICE that we stores as checkpoint
     std::vector<Vector<double> *> dummy(0);
-    adapter.save_current_state_if_required(dummy, time);
+    adapter->save_current_state_if_required(dummy, time);
 
-    adapter.advance(solution_, heat_flux_, time.get_delta_t());
+    adapter->advance(solution_, heat_flux_, time.get_delta_t());
 
-    adapter.reload_old_state_if_required(dummy, time);
+    adapter->reload_old_state_if_required(dummy, time);
     timer.leave_subsection("advance preCICE");
   }
 
@@ -258,8 +263,21 @@ namespace Heat_Transfer
   bool
   HeatEquation<dim>::is_coupling_ongoing() const
   {
-    return adapter.precice.isCouplingOngoing();
+    return adapter->precice.isCouplingOngoing();
   }
+
+
+
+  template <int dim>
+  void
+  HeatEquation<dim>::reset_precice()
+  {
+    adapter->precice.finalize();
+    adapter.reset(
+      new Adapter::Adapter<dim, 1, Vector<double>>(parameters,
+                                                   interface_boundary_id));
+  }
+
 
 
   template <int dim>
@@ -281,7 +299,7 @@ namespace Heat_Transfer
     coupling_data_ = 0;
     output_results(solution_, 0);
 
-    adapter.initialize(dof_handler, solution_, coupling_data_);
+    adapter->initialize(dof_handler, solution_, coupling_data_);
     timer.leave_subsection("initialize preCICE");
   }
 
@@ -297,7 +315,7 @@ namespace Heat_Transfer
 
     const unsigned int global_refinement = 4;
     triangulation.refine_global(global_refinement);
-    AssertThrow(interface_boundary_id == adapter.deal_boundary_interface_id,
+    AssertThrow(interface_boundary_id == adapter->deal_boundary_interface_id,
                 ExcMessage("Wrong interface ID in the Adapter specified"));
 
     dof_handler.distribute_dofs(fe);
