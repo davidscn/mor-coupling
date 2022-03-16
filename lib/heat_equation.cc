@@ -153,8 +153,8 @@ namespace Heat_Transfer
   };
 
   // Returns a spatially varying coefficient.
-  // If the domain is below the threshold of x and y, coefficient 1 is returned,
-  // If the domain is above the threshold of x and y, coefficient 2 is returned.
+  // If the domain is above the threshold of x and y, coefficient 1 is returned,
+  // else coefficient2 is returned.
   template <int dim, typename value_type = double>
   class Coefficient : public Function<dim, value_type>
   {
@@ -176,7 +176,7 @@ namespace Heat_Transfer
       (void)component;
       Assert(component == 0, ExcIndexRange(component, 0, 1));
 
-      if (p[0] < threshold_x && p[1] < threshold_y)
+      if (p[0] > threshold_x && p[1] > threshold_y)
         return coefficient1;
       else
         return coefficient2;
