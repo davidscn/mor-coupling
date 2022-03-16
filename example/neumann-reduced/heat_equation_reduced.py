@@ -108,7 +108,7 @@ def solve(model):
     # Let preCICE steer the coupled simulation
     solution = model.solution_space.empty()
     # assemble the system operator for given mu to avoid re-assembly in each iteration
-    assembled_model = model.with_(operator=model.operator.assemble(model.parameters.parse([1, 2])))   # fails to converge for mu=[0.1, 2]
+    assembled_model = model.with_(operator=model.operator.assemble(model.parameters.parse([1, 0.1])))
     while dealii.is_coupling_ongoing():
         # Compute the solution of the time step
         data = assembled_model.compute(solution=True, coupling_input=coupling_input)
@@ -164,4 +164,5 @@ err = (U - U_rom).norm()
 print(f'Time required for FOM solution: {t_fom}s')
 print(f'Time required for ROM solution: {t_rom}s')
 print(f'Singular values: {svals}')
+print(f'Norms: {U.norm()}')
 print(f'Errors: {err}')
