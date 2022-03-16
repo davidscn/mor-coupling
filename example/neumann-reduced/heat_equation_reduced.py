@@ -18,11 +18,6 @@ sys.path.insert(0, "../../lib")
 from dealii_heat_equation import HeatExample
 
 
-# USE_ROM == False: Solve full-order model and build reduced basis
-# USE_ROM == True:  Solve reduced-order model
-USE_ROM = len(sys.argv) == 2 and int(sys.argv[1])
-
-
 class StationaryPreciceModel(Model):
     """Generic interface class for coupled simulation via pyMOR and preCICE.
 
@@ -93,13 +88,36 @@ class PreciceCoupler:
 
     def init(self, initial_coupling_output):
         initial_coupling_input = self.coupling_input_space.zeros()
-        dealii.initialize_precice(initial_coupling_output._list[0].impl, initial_coupling_input._list[0].impl)
+        dealii.initialize_precice(initial_coupling_output.vectors[0].impl, initial_coupling_input.vectors[0].impl)
         return initial_coupling_input
 
     def advance(self, coupling_output):
         coupling_input = self.coupling_input_space.zeros()
-        dealii.advance(coupling_output._list[0].impl, coupling_input._list[0].impl)
+        dealii.advance(coupling_output.vectors[0].impl, coupling_input.vectors[0].impl)
         return coupling_input
+
+
+def solve(model):
+    # Setup coupling with PreCICE
+    coupling_output = fom.solution_space.zeros()
+    dealii.set_initial_condition(coupling_output.vectors[0].impl)
+    coupler = PreciceCoupler(fom.solution_space)
+    coupling_input = coupler.init(coupling_output)
+
+    tic = perf_counter()
+    # Let preCICE steer the coupled simulation
+    solution = model.solution_space.empty()
+    # assemble the system operator for given mu to avoid re-assembly in each iteration
+    assembled_model = model.with_(operator=model.operator.assemble(model.parameters.parse([1, 2])))   # fails to converge for mu=[0.1, 2]
+    while dealii.is_coupling_ongoing():
+        # Compute the solution of the time step
+        data = assembled_model.compute(solution=True, coupling_input=coupling_input)
+        solution.append(data['solution'])
+        coupling_output = data['coupling_output']
+        coupling_input = coupler.advance(coupling_output)
+    toc = perf_counter()
+    dealii.reset_precice()
+    return solution, toc-tic
 
 
 # instantiate deal.II model and print some information
@@ -118,60 +136,32 @@ operator = LincombOperator(operators, coefficients)
 coupling_input_operator = CouplingInputOperator(operator.source)
 fom = StationaryPreciceModel(operator, coupling_input_operator=coupling_input_operator)
 
-# Setup coupling with PreCICE
-coupling_output = fom.solution_space.zeros()
-dealii.set_initial_condition(coupling_output._list[0].impl)
-coupler = PreciceCoupler(fom.solution_space)
-coupling_input = coupler.init(coupling_output)
-
-# Choose model to simulate
-if USE_ROM:
-    # load pre-computed reduced basis
-    with open('reduced_basis.dat', 'rb') as f:
-        RB = fom.solution_space.from_numpy(load(f))
-
-    # build reduced-order model
-    projected_operator                 = project(fom.operator, RB, RB)
-    projected_coupling_input_operator  = project(fom.coupling_input_operator, RB, None)
-    projected_coupling_output_operator = project(fom.coupling_output_operator, None, RB)
-    model = StationaryPreciceModel(projected_operator,
-                                   projected_coupling_input_operator,
-                                   projected_coupling_output_operator)
-else:
-    model = fom
-
-
-# Let preCICE steer the coupled simulation
 tic = perf_counter()
-solution = model.solution_space.empty()
-# assemble the system operator for given mu to avoid re-assembly in each iteration
-assembled_model = model.with_(operator=model.operator.assemble(model.parameters.parse([1, 2])))   # fails to converge for mu=[0.1, 2]
-while dealii.is_coupling_ongoing():
-    # Compute the solution of the time step
-    data = assembled_model.compute(solution=True, coupling_input=coupling_input)
-    solution.append(data['solution'])
-    coupling_output = data['coupling_output']
-    coupling_input = coupler.advance(coupling_output)
-toc = perf_counter()
+U, t_fom = solve(fom)
+t_fom = perf_counter() - tic
 
-# Reset preCICE and rerun the simulation
-# dealii.reset_precice()
-# coupler = PreciceCoupler(fom.solution_space)
-# coupling_input = coupler.init(coupling_output)
+RB, svals = pod(U, rtol=1e-3)
 
-# Output the solution to VTK
-if USE_ROM:
-    # reconstruct high-dimensional solution field
-    solution = RB.lincomb(solution.to_numpy())
-for i, s in enumerate(solution, start=1):
-    dealii.output_results(s._list[0].impl, i)
+
+# build reduced-order model
+projected_operator                 = project(fom.operator, RB, RB)
+projected_coupling_input_operator  = project(fom.coupling_input_operator, RB, None)
+projected_coupling_output_operator = project(fom.coupling_output_operator, None, RB)
+rom = StationaryPreciceModel(projected_operator,
+                             projected_coupling_input_operator,
+                             projected_coupling_output_operator)
+
+
+u_rom, t_rom = solve(rom)
+U_rom = RB.lincomb(u_rom.to_numpy())
+err = (U - U_rom).norm()
+
+# for i, s in enumerate(solution, start=1):
+#     dealii.output_results(s.vectors[0].impl, i)
 
 
 # Build reduced basis
-if not USE_ROM:
-    RB, svals = pod(solution, rtol=1e-3)
-    print(svals)
-    with open('reduced_basis.dat', 'wb') as f:
-        dump(RB.to_numpy(), f)
-
-print(f'Time required for solution: {toc-tic}s')
+print(f'Time required for FOM solution: {t_fom}s')
+print(f'Time required for ROM solution: {t_rom}s')
+print(f'Singular values: {svals}')
+print(f'Errors: {err}')
