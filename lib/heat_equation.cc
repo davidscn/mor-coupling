@@ -47,7 +47,7 @@ namespace Heat_Transfer
     HeatEquation(const std::string &parameter_file);
 
     void
-    make_grid_and_sparsity_pattern();
+    make_grid_and_sparsity_pattern(unsigned int refinements);
 
     SparseMatrix<double>
     create_system_matrix(double coefficient1,
@@ -306,15 +306,14 @@ namespace Heat_Transfer
 
   template <int dim>
   void
-  HeatEquation<dim>::make_grid_and_sparsity_pattern()
+  HeatEquation<dim>::make_grid_and_sparsity_pattern(unsigned int refinements)
   {
     GridGenerator::hyper_rectangle(triangulation,
                                    Point<dim>{1, 0},
                                    Point<dim>{2, 1},
                                    true);
 
-    const unsigned int global_refinement = 4;
-    triangulation.refine_global(global_refinement);
+    triangulation.refine_global(refinements);
     AssertThrow(interface_boundary_id == adapter->deal_boundary_interface_id,
                 ExcMessage("Wrong interface ID in the Adapter specified"));
 

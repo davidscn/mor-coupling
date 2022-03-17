@@ -123,7 +123,7 @@ def solve(model, mu):
 # instantiate deal.II model and print some information
 dealii = HeatExample(parameter_file="parameters.prm")
 # Create the grid
-dealii.make_grid_and_sparsity_pattern()
+dealii.make_grid_and_sparsity_pattern(4)
 # setup the system, i.e., matrices etc.
 THRESHOLD_X, THRESHOLD_Y = 1.5, 0.5
 matrices = [dealii.create_system_matrix(1, 0, THRESHOLD_X, THRESHOLD_Y),
@@ -198,6 +198,6 @@ Relative errors: {errs/norms}
 FOM times: {t_foms}
 ROM times: {t_roms}
 Speedups: {t_foms / t_roms}
-Max Relative error: {np.max(errs/norms)}
+Max relative error: {np.max(errs/norms)}
 Median speedup: {np.median(t_foms / t_roms)}
 ''')
