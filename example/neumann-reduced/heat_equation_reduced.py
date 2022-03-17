@@ -97,7 +97,7 @@ class PreciceCoupler:
         return coupling_input
 
 
-def solve(model):
+def solve(model, mu):
     # Setup coupling with PreCICE
     coupling_output = fom.solution_space.zeros()
     dealii.set_initial_condition(coupling_output.vectors[0].impl)
@@ -108,7 +108,7 @@ def solve(model):
     # Let preCICE steer the coupled simulation
     solution = model.solution_space.empty()
     # assemble the system operator for given mu to avoid re-assembly in each iteration
-    assembled_model = model.with_(operator=model.operator.assemble(model.parameters.parse([1, 0.1])))
+    assembled_model = model.with_(operator=model.operator.assemble(mu))
     while dealii.is_coupling_ongoing():
         # Compute the solution of the time step
         data = assembled_model.compute(solution=True, coupling_input=coupling_input)
@@ -131,16 +131,21 @@ matrices = [dealii.create_system_matrix(1, 0, THRESHOLD_X, THRESHOLD_Y),
 
 # Create full-order model
 operators = [DealIIMatrixOperator(matrix) for matrix in matrices]
-coefficients = [ProjectionParameterFunctional('coefficient', 2, i) for i in range(2)]
+coefficients = [ProjectionParameterFunctional('coefficient', 1, 0), 1]
 operator = LincombOperator(operators, coefficients)
 coupling_input_operator = CouplingInputOperator(operator.source)
 fom = StationaryPreciceModel(operator, coupling_input_operator=coupling_input_operator)
+parameter_space = fom.parameters.space([1, 10])
 
-tic = perf_counter()
-U, t_fom = solve(fom)
-t_fom = perf_counter() - tic
 
-RB, svals = pod(U, rtol=1e-3)
+# basis generation
+snapshots = fom.solution_space.empty()
+for mu in parameter_space.sample_uniformly(5):
+    U, _ = solve(fom, mu=mu)
+    snapshots.append(U[-1])  # don't use convergence history for basis generation only final solution
+
+RB, svals = pod(snapshots, rtol=1e-3)
+del snapshots
 
 
 # build reduced-order model
@@ -152,17 +157,47 @@ rom = StationaryPreciceModel(projected_operator,
                              projected_coupling_output_operator)
 
 
-u_rom, t_rom = solve(rom)
-U_rom = RB.lincomb(u_rom.to_numpy())
-err = (U - U_rom).norm()
+# ROM evaluation
+norms = []
+errs = []
+t_foms = []
+t_roms = []
+mus = parameter_space.sample_randomly(5)
+
+for mu in mus:
+    print(f'\n\n*** FOM solve for {mu} ***')
+    U, t_fom = solve(fom, mu=mu)
+    print(f'\n\n*** ROM solve for {mu} ***')
+    u_rom, t_rom = solve(rom, mu=mu)
+    U_rom = RB.lincomb(u_rom.to_numpy())
+    norm = U[-1].norm().item()
+    err = (U[-1] - U_rom[-1]).norm().item()
+
+    norms.append(norm)
+    errs.append(err)
+    t_foms.append(t_fom)
+    t_roms.append(t_rom)
+
+norms = np.array(norms)
+errs = np.array(errs)
+t_foms = np.array(t_foms)
+t_roms = np.array(t_roms)
 
 # for i, s in enumerate(solution, start=1):
 #     dealii.output_results(s.vectors[0].impl, i)
 
 
 # Build reduced basis
-print(f'Time required for FOM solution: {t_fom}s')
-print(f'Time required for ROM solution: {t_rom}s')
-print(f'Singular values: {svals}')
-print(f'Norms: {U.norm()}')
-print(f'Errors: {err}')
+print(f'''\n\n
+RB size: {len(RB)}
+Singular values: {svals}
+Test parameters: {[mu['coefficient'].item() for mu in mus]}
+Norms: {norms}
+Absolute errors: {errs}
+Relative errors: {errs/norms}
+FOM times: {t_foms}
+ROM times: {t_roms}
+Speedups: {t_foms / t_roms}
+Max Relative error: {np.max(errs/norms)}
+Median speedup: {np.median(t_foms / t_roms)}
+''')
