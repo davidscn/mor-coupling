@@ -7,10 +7,9 @@ sudo apt-get -qy update
 wget -q https://github.com/precice/precice/releases/download/v${PRECICE_VERSION}/libprecice2_${PRECICE_VERSION}_focal.deb
 sudo apt-get -qy install ./libprecice2_${PRECICE_VERSION}_focal.deb python3-pip python-is-python3
 sudo apt-get -qy install fenics
-python3 -m pip install pymor~=2021.2
+python3 -m pip install -r /src/mor-coupling/requirements.txt
 cd /src/pymor-deal.II
 python3 -m pip install .
-python3 -m pip install fenicsprecice
 cd /src/mor-coupling
 cmake .
 make

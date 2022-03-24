@@ -7,7 +7,7 @@ set -o pipefail
 apt update -q
 apt install -yq libgsl-dev libarpack2-dev liblapack-dev libmuparser-dev libmetis-dev libtbb-dev
 
-python3 -m pip install fenicsprecice pymor~=2021.2
+python3 -m pip install -r /src/mor-coupling/requirements.txt
 
 # the pyMOR docker ecosystem compiles extension modules with
 # the oldest supported numpy version, but the final
