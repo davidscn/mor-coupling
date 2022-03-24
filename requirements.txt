@@ -1,0 +1,2 @@
+git+https://github.com/pymor/pymor.git@e67ece52c3526d9c48f2d6e8beb22a32a9b7cea1
+fenicsprecice~=1.3.0
