@@ -13,7 +13,7 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    --*|-*)
+    *)
       echo "Unknown option $1"
       echo "Please use -n (--number) <N> in order to specify the number of runs you want to execute."
       exit 1
